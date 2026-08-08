@@ -100,6 +100,8 @@ VtkTree* ParseVtiFile(const char* fname) {
   std::unordered_map<std::string, std::string> root_attrs;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       point_arr_info;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
+      cell_arr_info;
   uint64_t appended_data_pos = 0;
 
   {
@@ -118,6 +120,13 @@ VtkTree* ParseVtiFile(const char* fname) {
                   pd->GetNestedElement(i));
       }
     }
+    {
+      vtkXMLDataElement* pd = root->LookupElementWithName("CellData");
+      for (int i = 0; i < reader->GetNumberOfCellArrays(); i++) {
+        CopyAttrs(&cell_arr_info[reader->GetCellArrayName(i)],
+                  pd->GetNestedElement(i));
+      }
+    }
   }
 
   struct stat statbuf;
@@ -128,6 +137,9 @@ VtkTree* ParseVtiFile(const char* fname) {
   subdirs.insert(
       {"pointdata", std::unique_ptr<Dir>(ParseFieldData(
                         file.get(), point_arr_info, appended_data_pos))});
+  subdirs.insert(
+      {"celldata", std::unique_ptr<Dir>(ParseFieldData(
+                       file.get(), cell_arr_info, appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
