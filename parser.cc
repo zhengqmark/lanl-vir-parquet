@@ -34,6 +34,7 @@
 
 #include "parser.h"
 
+#include <vtkDataCompressor.h>
 #include <vtkNew.h>
 #include <vtkXMLDataElement.h>
 #include <vtkXMLDataParser.h>
@@ -49,16 +50,21 @@ inline void CopyAttrs(std::unordered_map<std::string, std::string>* des,
 }
 
 FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
-                            ArrayType type, uint64_t offset) {
+                            ArrayType type, CompressionType codec,
+                            uint64_t offset) {
+  if (codec == CompressionType::NONE) {  // TODO
+    throw std::runtime_error("Data not compressed");
+  }
+
   CompressedArray arr;
   ParseCompressed(file, offset, &arr);
-  FileMap* map = BuildMap(name, type, arr);
+  FileMap* map = BuildMap(name, type, codec, arr);
   delete[] arr.compressed_blk_sz;
   return map;
 }
 
 FileMap* ParseFieldArray(
-    RandomAccessFile* file, const std::string& name,
+    RandomAccessFile* file, const std::string& name, CompressionType codec,
     const std::unordered_map<std::string, std::string>& map,
     uint64_t appended_data_pos) {
   ArrayType type = ArrayType::UNKNOWN;
@@ -75,14 +81,15 @@ FileMap* ParseFieldArray(
   const std::string& format = map.at("format");
   if (format == "appended") {
     return ParseAppendedArray(
-        file, name, type, atoll(map.at("offset").c_str()) + appended_data_pos);
+        file, name, type, codec,
+        atoll(map.at("offset").c_str()) + appended_data_pos);
   } else {
     throw std::runtime_error("Unsupported point array format");
   }
 }
 
 Dir* ParseFieldData(
-    RandomAccessFile* file,
+    RandomAccessFile* file, CompressionType codec,
     const std::unordered_map<
         std::string, std::unordered_map<std::string, std::string>>& arr_info,
     uint64_t appended_data_pos) {
@@ -93,9 +100,21 @@ Dir* ParseFieldData(
     if (name == "vtkGhostType") continue;
 #endif
     maps.insert({name, std::unique_ptr<FileMap>(ParseFieldArray(
-                           file, name, info, appended_data_pos))});
+                           file, name, codec, info, appended_data_pos))});
   }
   return new ArrayDir(std::move(maps), file, false);
+}
+
+CompressionType IdentifyCompressionType(vtkDataCompressor* compr) {
+  if (!compr) {
+    return CompressionType::NONE;
+  } else if (compr->IsA("vtkZLibDataCompressor")) {
+    return CompressionType::ZLIB;
+  } else if (compr->IsA("vtkLZ4DataCompressor")) {
+    return CompressionType::LZ4;
+  } else {
+    throw std::runtime_error("Unsupported data compression type");
+  }
 }
 
 VtkTree* ParseVtiFile(const char* fname) {
@@ -105,12 +124,14 @@ VtkTree* ParseVtiFile(const char* fname) {
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       cell_arr_info;
   uint64_t appended_data_pos = 0;
+  CompressionType codec;
 
   {
     vtkNew<vtkXMLImageDataReader> reader;
     reader->SetFileName(fname);
     reader->UpdateInformation();
     vtkXMLDataParser* parser = reader->GetXMLParser();
+    codec = IdentifyCompressionType(parser->GetCompressor());
     appended_data_pos = parser->GetAppendedDataPosition();
     vtkXMLDataElement* root = parser->GetRootElement();
     CopyAttrs(&root_attrs, root);
@@ -136,12 +157,12 @@ VtkTree* ParseVtiFile(const char* fname) {
   std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
-  subdirs.insert(
-      {"pointdata", std::unique_ptr<Dir>(ParseFieldData(
-                        file.get(), point_arr_info, appended_data_pos))});
+  subdirs.insert({"pointdata",
+                  std::unique_ptr<Dir>(ParseFieldData(
+                      file.get(), codec, point_arr_info, appended_data_pos))});
   subdirs.insert(
       {"celldata", std::unique_ptr<Dir>(ParseFieldData(
-                       file.get(), cell_arr_info, appended_data_pos))});
+                       file.get(), codec, cell_arr_info, appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 

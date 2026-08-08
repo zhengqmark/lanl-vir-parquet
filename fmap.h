@@ -85,4 +85,4 @@ class MapBuilder {
 };
 
 FileMap* BuildMap(const std::string& name, ArrayType type,
-                  const CompressedArray& arr);
+                  CompressionType codec, const CompressedArray& arr);

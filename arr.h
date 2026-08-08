@@ -40,6 +40,8 @@ enum ArrayType { INT8, UINT8, FLOAT32, UNKNOWN };
 
 int GetValueSize(ArrayType type);
 
+enum CompressionType { NONE, ZLIB, LZ4, UNKNOWN_COMPRESSION };
+
 struct CompressedArray {
   CompressedArray();
   uint64_t num_blks;

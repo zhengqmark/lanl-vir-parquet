@@ -205,9 +205,24 @@ parquet::format::Type::type ToParquetType(ArrayType type) {
   }
 }
 
+parquet::format::CompressionCodec::type ToParquetCodec(CompressionType type) {
+  switch (type) {
+    case CompressionType::NONE:
+      return parquet::format::CompressionCodec::UNCOMPRESSED;
+    case CompressionType::ZLIB:
+      // Require parquet readers to accept zlib streams in addition to gzip
+      // streams
+      return parquet::format::CompressionCodec::GZIP;
+    case CompressionType::LZ4:
+      return parquet::format::CompressionCodec::LZ4_RAW;
+    default:
+      throw std::runtime_error("Unsupported data compression type");
+  }
+}
+
 uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
                       const std::string& name, ArrayType type,
-                      int64_t total_compressed_size,
+                      CompressionType codec, int64_t total_compressed_size,
                       int64_t total_uncompressed_size, int64_t total_count) {
   parquet::format::FileMetaData file_meta_data;
   file_meta_data.__set_version(2);
@@ -244,7 +259,7 @@ uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
         meta_data.__set_type(on_storage_type);
         meta_data.__set_encodings({parquet::format::Encoding::PLAIN});
         meta_data.__set_path_in_schema({name});
-        meta_data.__set_codec(parquet::format::CompressionCodec::GZIP);  // TODO
+        meta_data.__set_codec(ToParquetCodec(codec));
         meta_data.__set_num_values(total_count);
         meta_data.__set_total_uncompressed_size(total_uncompressed_size);
         meta_data.__set_total_compressed_size(total_compressed_size);
@@ -286,7 +301,7 @@ uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
 }  // namespace
 
 FileMap* BuildMap(const std::string& name, ArrayType type,
-                  const CompressedArray& arr) {
+                  CompressionType codec, const CompressedArray& arr) {
   char par1[] = "PAR1";
   int64_t total_compressed_size = 0;
   int64_t total_uncompressed_size = 0;
@@ -318,8 +333,8 @@ FileMap* BuildMap(const std::string& name, ArrayType type,
     total_count += uncompressed_size / value_size;
   }
   uint32_t foot_size =
-      AppendFooter(&serializer, &builder, name, type, total_compressed_size,
-                   total_uncompressed_size, total_count);
+      AppendFooter(&serializer, &builder, name, type, codec,
+                   total_compressed_size, total_uncompressed_size, total_count);
   builder.AddDirect(&foot_size, 4);
   builder.AddDirect(par1, 4);
 
