@@ -132,7 +132,11 @@ VtkTree* ParseVtiFile(const char* fname) {
   {
     vtkNew<vtkXMLImageDataReader> reader;
     reader->SetFileName(fname);
-    reader->UpdateInformation();
+    if (!reader->UpdateInformation()) {
+      throw std::runtime_error(
+          "Failed to parse the input vtk file. Please make sure the file "
+          "exists and is valid.");
+    }
     vtkXMLDataParser* parser = reader->GetXMLParser();
     codec = IdentifyCompressionType(parser->GetCompressor());
     appended_data_pos = parser->GetAppendedDataPosition();
