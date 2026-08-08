@@ -57,6 +57,13 @@ int Lookup(Dir* dir, const std::string& name) {
   }
 }
 
+// Resolve the input pathname up to the very last parent directory. Repeated '/'
+// characters in the middle or at the end of the pathname are allowed and
+// silently skipped. A trailing '/' does not require the final component to
+// resolve to a directory.
+
+// This operation is expected to be followed by a final Lookup call to resolve
+// the last pathname component, which may refer to either a file or a directory.
 int ResolvePath(Dir* root, const char* path, Dir** parent, std::string* name) {
   if (!path || path[0] != '/')  // Only absolute paths are supported
     return -EINVAL;
@@ -95,6 +102,8 @@ int ResolvePath(Dir* root, const char* path, Dir** parent, std::string* name) {
   }
 }
 
+// Convert owner/group/other read permissions to directory level
+// read + execute permissions.
 mode_t MakeDirMode(mode_t mode) {
   mode_t new_mode = S_IFDIR;
 
@@ -243,6 +252,10 @@ int vtk_readdir(const char* path, void* buf, fuse_fill_dir_t filler, off_t off,
 }
 
 int vtk_open(const char* path, struct fuse_file_info* fi) {
+  // Files may only be opened read-only. This check is likely redundant when
+  // FUSE is mounted with -o default_permissions, which instructs the kernel to
+  // enforce file permissions rather than deferring permission checks to the
+  // filesystem.
   if ((fi->flags & O_ACCMODE) != O_RDONLY) {
     return -EPERM;
   }
