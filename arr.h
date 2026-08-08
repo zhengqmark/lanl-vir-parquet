@@ -36,6 +36,8 @@
 
 #include <stdint.h>
 
+class RandomAccessFile;
+
 enum ArrayType { INT8, UINT8, FLOAT32, UNKNOWN };
 
 int GetValueSize(ArrayType type);
@@ -51,7 +53,14 @@ struct CompressedArray {
   uint64_t data_start;
 };
 
-class RandomAccessFile;
-
 void ParseCompressed(RandomAccessFile* file, uint64_t offset,
                      CompressedArray* result);
+
+struct UncompressedArray {
+  UncompressedArray();
+  uint64_t total_bytes;
+  uint64_t data_start;
+};
+
+void ParseUncompressed(RandomAccessFile* file, uint64_t offset,
+                       UncompressedArray* result);

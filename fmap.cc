@@ -148,7 +148,7 @@ namespace {
 
 uint32_t AppendPage(ThriftSerializer* serializer, MapBuilder* builder,
                     int value_size, uint64_t offset, uint32_t compressed_size,
-                    uint32_t uncompressed_size) {
+                    uint32_t uncompressed_size, bool is_compressed) {
   parquet::format::PageHeader page_header;
 
   page_header.__set_type(parquet::format::PageType::DATA_PAGE_V2);
@@ -164,7 +164,7 @@ uint32_t AppendPage(ThriftSerializer* serializer, MapBuilder* builder,
     v2.__set_encoding(parquet::format::Encoding::PLAIN);
     v2.__set_definition_levels_byte_length(0);
     v2.__set_repetition_levels_byte_length(0);
-    v2.__set_is_compressed(true);
+    if (is_compressed) v2.__set_is_compressed(true);
     page_header.__set_data_page_header_v2(v2);
   }
 
@@ -316,7 +316,7 @@ FileMap* BuildMap(const std::string& name, ArrayType type,
     uint32_t uncompressed_size = arr.blk_sz;
     uint32_t header_size =
         AppendPage(&serializer, &builder, value_size, underlying_offset,
-                   compressed_size, uncompressed_size);
+                   compressed_size, uncompressed_size, true);
     underlying_offset += compressed_size;
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
@@ -327,13 +327,52 @@ FileMap* BuildMap(const std::string& name, ArrayType type,
     uint32_t uncompressed_size = arr.last_blk_sz;
     uint32_t header_size =
         AppendPage(&serializer, &builder, value_size, underlying_offset,
-                   compressed_size, uncompressed_size);
+                   compressed_size, uncompressed_size, true);
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
     total_count += uncompressed_size / value_size;
   }
   uint32_t foot_size =
       AppendFooter(&serializer, &builder, name, type, codec,
+                   total_compressed_size, total_uncompressed_size, total_count);
+  builder.AddDirect(&foot_size, 4);
+  builder.AddDirect(par1, 4);
+
+  return builder.Finish();
+}
+
+FileMap* BuildMap(const std::string& name, ArrayType type,
+                  const UncompressedArray& arr) {
+  char par1[] = "PAR1";
+  int64_t total_compressed_size = 0;
+  int64_t total_uncompressed_size = 0;
+  int64_t total_count = 0;
+  const int value_size = GetValueSize(type);
+  ThriftSerializer serializer;
+  MapBuilder builder;
+  builder.AddDirect(par1, 4);
+  uint64_t underlying_offset = arr.data_start;
+  uint64_t blk_sz = 32768;
+  uint64_t num_blks = (arr.total_bytes + blk_sz - 1) / blk_sz;  // TODO
+  uint64_t last_blk_sz = (arr.total_bytes - 1) % 32768 + 1;
+  for (int i = 0; i < num_blks - 1; i++) {
+    uint32_t header_size = AppendPage(&serializer, &builder, value_size,
+                                      underlying_offset, blk_sz, blk_sz, false);
+    underlying_offset += blk_sz;
+    total_compressed_size += header_size + blk_sz;
+    total_uncompressed_size += header_size + blk_sz;
+    total_count += blk_sz / value_size;
+  }
+  {
+    uint32_t header_size =
+        AppendPage(&serializer, &builder, value_size, underlying_offset,
+                   last_blk_sz, last_blk_sz, false);
+    total_compressed_size += header_size + last_blk_sz;
+    total_uncompressed_size += header_size + last_blk_sz;
+    total_count += last_blk_sz / value_size;
+  }
+  uint32_t foot_size =
+      AppendFooter(&serializer, &builder, name, type, CompressionType::NONE,
                    total_compressed_size, total_uncompressed_size, total_count);
   builder.AddDirect(&foot_size, 4);
   builder.AddDirect(par1, 4);

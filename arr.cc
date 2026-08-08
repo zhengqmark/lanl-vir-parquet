@@ -62,6 +62,20 @@ void ParseCompressed(RandomAccessFile* file, uint64_t offset,
   result->data_start = offset + 24 + 8 * info[0];
 }
 
+UncompressedArray::UncompressedArray() {}
+
+void ParseUncompressed(RandomAccessFile* file, uint64_t offset,
+                       UncompressedArray* result) {
+  uint64_t bytes;
+  uint64_t nr = file->Pread(&bytes, 8, offset);
+  if (nr != 8) {
+    throw std::runtime_error("Fail to read data array header");
+  }
+
+  result->total_bytes = bytes;
+  result->data_start = offset + 8;
+}
+
 int GetValueSize(ArrayType type) {
   switch (type) {
     case ArrayType::INT8:

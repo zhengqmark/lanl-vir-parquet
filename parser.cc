@@ -52,15 +52,18 @@ inline void CopyAttrs(std::unordered_map<std::string, std::string>* des,
 FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
                             ArrayType type, CompressionType codec,
                             uint64_t offset) {
-  if (codec == CompressionType::NONE) {  // TODO
-    throw std::runtime_error("Data not compressed");
+  if (codec == CompressionType::NONE) {
+    UncompressedArray arr;
+    ParseUncompressed(file, offset, &arr);
+    FileMap* map = BuildMap(name, type, arr);
+    return map;
+  } else {
+    CompressedArray arr;
+    ParseCompressed(file, offset, &arr);
+    FileMap* map = BuildMap(name, type, codec, arr);
+    delete[] arr.compressed_blk_sz;
+    return map;
   }
-
-  CompressedArray arr;
-  ParseCompressed(file, offset, &arr);
-  FileMap* map = BuildMap(name, type, codec, arr);
-  delete[] arr.compressed_blk_sz;
-  return map;
 }
 
 FileMap* ParseFieldArray(
