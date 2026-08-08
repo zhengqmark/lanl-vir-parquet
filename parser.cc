@@ -88,8 +88,10 @@ Dir* ParseFieldData(
     uint64_t appended_data_pos) {
   std::unordered_map<std::string, std::unique_ptr<FileMap>> maps;
   for (auto& [name, info] : arr_info) {
+#if 0
     if (name == "vtkValidPointMask") continue;
     if (name == "vtkGhostType") continue;
+#endif
     maps.insert({name, std::unique_ptr<FileMap>(ParseFieldArray(
                            file, name, info, appended_data_pos))});
   }
