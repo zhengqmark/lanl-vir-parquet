@@ -209,7 +209,24 @@ int Release(struct fuse_file_info* fi) {
 }  // namespace
 
 extern "C" {
-void* vtk_init_tree_int(const char* fname) { return ParseVtkFile(fname); }
+
+// We guard against potential exceptions during tree initialization. Any
+// exception at this stage results in early program termination, since there is
+// no clear way to recover from an unparseable VTK file.
+
+// Once the tree has been successfully initialized, the program state is
+// effectively read-only and no further exceptions are expected. An exception
+// after this point would therefore indicate a programming error that should be
+// debugged rather than recovered from. We intentionally leave such exceptions
+// unhandled so that the program fails fast.
+void* vtk_init_tree_int(const char* fname) {
+  try {
+    return ParseVtkFile(fname);
+  } catch (const std::exception& e) {
+    fprintf(stderr, "Unable to init vtk tree. %s\n", e.what());
+    exit(EXIT_FAILURE);
+  }
+}
 
 int vtk_getattr(const char* path, struct stat* statbuf,
                 struct fuse_file_info* fi) {
