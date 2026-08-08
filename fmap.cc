@@ -218,7 +218,7 @@ uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
 
   {
     parquet::format::SchemaElement group;
-    group.__set_name("VTKFILE");
+    group.__set_name("vtkfile");
     group.__set_repetition_type(parquet::format::FieldRepetitionType::REQUIRED);
     group.__set_num_children(1);
     parquet::format::SchemaElement ele;
