@@ -213,6 +213,7 @@ int Read(char* buf, size_t size, off_t off, struct fuse_file_info* fi) {
 
 int Release(struct fuse_file_info* fi) {
   delete reinterpret_cast<RandomAccessFile*>(fi->fh);
+  return 0;
 }
 
 }  // namespace
@@ -271,7 +272,9 @@ int vtk_read(const char* path, char* buf, size_t size, off_t off,
 
 int vtk_flush(const char* path, struct fuse_file_info* fi) { return 0; }
 
-int vtk_release(const char* path, struct fuse_file_info* fi) { Release(fi); }
+int vtk_release(const char* path, struct fuse_file_info* fi) {
+  return Release(fi);
+}
 
 void vtk_destroy_tree(void* private_data) {
   delete reinterpret_cast<VtkTree*>(private_data);
