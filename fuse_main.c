@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
   fuse_opt_parse(&args, &g_conf, fs_opts, NULL);
   if (!g_conf.underlying_file) {
     fprintf(stderr,
-            "No vtk file specified. Use \"-ounderlying_file=%s\" to set the "
+            "No vtk file specified. Use \"-ounderlying_file=%%s\" to set the "
             "underlying vtk file.\n");
     return 1;
   }
