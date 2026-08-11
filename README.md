@@ -21,7 +21,37 @@ Compiling Virtual Parquet requires VTK 9.7+, libfuse3, libparquet, and libboost.
 
 Use the standard CMake workflow to build Virtual Parquet. Once built, run `fuse_main` to mount the FUSE filesystem backed by a Parquet file: `./fuse_main -odefault_permissions -ounderlying_file=/path/to/parquet/file /path/to/mount/point`. Use `fusermount -u /path/to/mount/point` to umount the FUSE filesystem.
 
+A VTK file is translated into a tree of metadata and Parquet files. Metadata is exposed as pseudo-files representing the VTK file's root attributes, such as `byte_order`, `header_type`, and `compressor`. Each pseudo-file acts as a key-value pair: the filename is the key, and the file contents hold the value. Each Parquet file corresponds to a specific data array in the VTK file.
 
+For example:
+
+```
+./fuse_main -odefault_permissions -ounderlying_file=/tmp/pv_insitu_300x300x300_24095.vti /tmp/pv_insitu_300x300x300_24095
+tree /tmp/pv_insitu_300x300x300_24095/
+/tmp/pv_insitu_300x300x300_24095/
+├── celldata
+│   └── vtkGhostType
+├── METADATA
+│   ├── byte_order
+│   ├── compressor
+│   ├── header_type
+│   ├── Origin
+│   ├── Spacing
+│   ├── type
+│   ├── version
+│   └── WholeExtent
+└── pointdata
+    ├── prs
+    ├── rho
+    ├── tev
+    ├── v02
+    ├── v03
+    ├── vtkGhostType
+    └── vtkValidPointMask
+
+4 directories, 16 files
+fusermount -u /tmp/pv_insitu_300x300x300_24095
+```
 
 # Acknowledgement
 
