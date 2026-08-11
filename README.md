@@ -3,19 +3,19 @@
 [![License](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
 
 ```
-XX              XXXXX XXX         XX XX           XX       XX XX XXX         XXX
-XX             XXX XX XXXX        XX XX           XX       XX XX    XX     XX   XX
-XX            XX   XX XX XX       XX XX           XX       XX XX      XX XX       XX
-XX           XX    XX XX  XX      XX XX           XX       XX XX      XX XX       XX
-XX          XX     XX XX   XX     XX XX           XX XXXXX XX XX      XX XX       XX
-XX         XX      XX XX    XX    XX XX           XX       XX XX     XX  XX
-XX        XX       XX XX     XX   XX XX           XX       XX XX    XX   XX
-XX       XX XX XX XXX XX      XX  XX XX           XX XXXXX XX XX XXX     XX       XX
-XX      XX         XX XX       XX XX XX           XX       XX XX         XX       XX
-XX     XX          XX XX        X XX XX           XX       XX XX         XX       XX
-XX    XX           XX XX          XX XX           XX       XX XX          XX     XX
-XXXX XX            XX XX          XX XXXXXXXXXX   XX       XX XX            XXXXXX
+██╗      █████╗ ███╗   ██╗██╗         ██╗  ██╗██████╗  ██████╗
+██║     ██╔══██╗████╗  ██║██║         ██║  ██║██╔══██╗██╔════╝
+██║     ███████║██╔██╗ ██║██║         ███████║██████╔╝██║
+██║     ██╔══██║██║╚██╗██║██║         ██╔══██║██╔═══╝ ██║
+███████╗██║  ██║██║ ╚████║███████╗    ██║  ██║██║     ╚██████╗
+╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝    ╚═╝  ╚═╝╚═╝      ╚═════╝
 ```
+
+Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from standard VTK files to Parquet, without requiring the data to be converted in advance.
+
+# Prerequisites
+
+Compiling Virtual Parquet requires VTK 9.7+, libfuse3, libparquet, and libboost. On Ubuntu 26.04, VTK 9.7 (`wget https://github.com/Kitware/VTK/archive/refs/tags/v9.7.0.rc4.tar.gz`) can be built from source with `cmake -DCMAKE_BUILD_TYPE=Release -DVTK_USE_X=OFF -DVTK_USE_Wayland=OFF`, while the other two dependencies can be installed via apt (`apt install libfuse3-dev libparquet-dev libboost-dev`). You will also need a few standard build tools, such as GCC, CMake, and Git: `apt install git wget gcc g++ make pkg-config cmake`.
 
 # Acknowledgement
 
