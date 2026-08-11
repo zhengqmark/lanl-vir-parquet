@@ -15,10 +15,16 @@ Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from s
 
 # Parquet Tool Compatibility
 
-Virtual Parquet works with a wide range of existing tools in the Parquet ecosystem. The following tools have been tested and verified:
+Virtual Parquet works with a wide range of existing tools in the Parquet ecosystem. The following tools have been tested and confirmed to work with virtual Parquet files translated from the underlying VTK files:
 
-// TODO
-
+- [Apache Arrow Parquet Tools](https://github.com/apache/arrow/tree/main/cpp/tools/parquet)
+- [DuckDB CLI](https://duckdb.org/docs/lts/clients/cli/overview)
+- [Datafusion CLI](https://datafusion.apache.org/user-guide/cli/index.html)
+- [Datanomy](https://github.com/raulcd/datanomy)
+- [Nail](https://github.com/Vitruves/nail-parquet)
+- [Parqeye](https://github.com/kaushiksrini/parqeye)
+- [Parquetlens](https://github.com/cfahlgren1/parquetlens)
+- [Tabview](https://github.com/shshemi/tabiew)
 
 # Prerequisites
 
