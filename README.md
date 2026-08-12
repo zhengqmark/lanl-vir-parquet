@@ -25,6 +25,7 @@ Virtual Parquet works with a wide range of existing tools in the Parquet ecosyst
 - [Parqeye](https://github.com/kaushiksrini/parqeye)
 - [Parquetlens](https://github.com/cfahlgren1/parquetlens)
 - [Tabview](https://github.com/shshemi/tabiew)
+- [Spark](https://pypi.org/project/pyspark/)
 
 # Prerequisites
 
