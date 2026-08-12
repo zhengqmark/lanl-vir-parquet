@@ -40,7 +40,7 @@ Use the standard CMake workflow to build Virtual Parquet. Once built, run `fuse_
 
 A VTK file is translated into a tree of metadata and Parquet files. Metadata is exposed as pseudo-files representing the VTK file's root attributes, such as `byte_order`, `header_type`, and `compressor`. Each pseudo-file acts as a key-value pair: the filename is the key, and the file contents hold the value. Each Parquet file corresponds to a specific point-data or cell-data array in the VTK file.
 
-For example:
+As an example:
 
 ```
 ./fuse_main -odefault_permissions -ounderlying_file=/tmp/pv_insitu_300x300x300_24095.vti /tmp/pv_insitu_300x300x300_24095
@@ -69,6 +69,8 @@ tree /tmp/pv_insitu_300x300x300_24095/
 4 directories, 16 files
 fusermount -u /tmp/pv_insitu_300x300x300_24095
 ```
+
+The VTK file used in this example can be downloaded from [oceans11.lanl.gov](https://oceans11.lanl.gov/deepwaterimpact/data/yA31/300x300x300-FourScalars_resolution/); any timestep will work. The files are part of LANL’s publicly available Deep Water Asteroid Impact dataset (LA-UR-17-21595). See this [video](https://www.youtube.com/watch?v=yeXcgnj8AG0) for more information about the dataset.
 
 # Acknowledgement
 
