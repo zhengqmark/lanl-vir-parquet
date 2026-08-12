@@ -15,7 +15,7 @@ Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from s
 
 # Parquet Tool Compatibility
 
-Virtual Parquet works with a wide range of existing tools in the Parquet ecosystem. The following tools have been tested and confirmed to work with virtual Parquet files translated from the underlying VTK files:
+Virtual Parquet works with a wide range of existing tools in the Parquet ecosystem. The following tools have been tested and confirmed to work with the virtual Parquet files translated from VTK files:
 
 - [Apache Arrow Parquet Tools](https://github.com/apache/arrow/tree/main/cpp/tools/parquet)
 - [DuckDB CLI](https://duckdb.org/docs/lts/clients/cli/overview)
