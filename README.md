@@ -24,8 +24,9 @@ Virtual Parquet works with a wide range of existing tools in the Parquet ecosyst
 - [Nail](https://github.com/Vitruves/nail-parquet)
 - [Parqeye](https://github.com/kaushiksrini/parqeye)
 - [Parquetlens](https://github.com/cfahlgren1/parquetlens)
-- [Tabview](https://github.com/shshemi/tabiew)
+- [Pandas](https://pandas.pydata.org/)
 - [Spark](https://pypi.org/project/pyspark/)
+- [Tabview](https://github.com/shshemi/tabiew)
 
 # Prerequisites
 
