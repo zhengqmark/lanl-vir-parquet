@@ -2,17 +2,6 @@
   <img src="logo.jpeg" alt="Virtual Parquet" width="100%">
 </p>
 
-[![License](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
-
-```
-██╗      █████╗ ███╗   ██╗██╗         ██╗  ██╗██████╗  ██████╗
-██║     ██╔══██╗████╗  ██║██║         ██║  ██║██╔══██╗██╔════╝
-██║     ███████║██╔██╗ ██║██║         ███████║██████╔╝██║
-██║     ██╔══██║██║╚██╗██║██║         ██╔══██║██╔═══╝ ██║
-███████╗██║  ██║██║ ╚████║███████╗    ██║  ██║██║     ╚██████╗
-╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝    ╚═╝  ╚═╝╚═╝      ╚═════╝
-```
-
 Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from standard VTK files to Parquet, without requiring the data to be converted in advance. Each FUSE file acts as a virtual address map: some regions map to dynamically generated in-memory Parquet metadata, while others map directly to regions of the underlying VTK file.
 
 # Parquet Tool Compatibility
@@ -75,6 +64,17 @@ fusermount -u /tmp/pv_insitu_300x300x300_24095
 The VTK file used in this example can be downloaded from [oceans11.lanl.gov](https://oceans11.lanl.gov/deepwaterimpact/data/yA31/300x300x300-FourScalars_resolution/); any timestep will work. The files are part of LANL’s publicly available Deep Water Asteroid Impact dataset (LA-UR-17-21595). See this [video](https://www.youtube.com/watch?v=yeXcgnj8AG0) for more information about the dataset.
 
 # Acknowledgement
+
+[![License](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
+
+```
+██╗      █████╗ ███╗   ██╗██╗         ██╗  ██╗██████╗  ██████╗
+██║     ██╔══██╗████╗  ██║██║         ██║  ██║██╔══██╗██╔════╝
+██║     ███████║██╔██╗ ██║██║         ███████║██████╔╝██║
+██║     ██╔══██║██║╚██╗██║██║         ██╔══██║██╔═══╝ ██║
+███████╗██║  ██║██║ ╚████║███████╗    ██║  ██║██║     ╚██████╗
+╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝    ╚═╝  ╚═╝╚═╝      ╚═════╝
+```
 
 This codebase is authored by an employee of Triad National Security, LLC which operates Los Alamos National Laboratory for the U.S. Department of Energy/National Nuclear Security Administration.
 
