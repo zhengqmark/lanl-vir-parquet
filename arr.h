@@ -38,7 +38,7 @@
 
 class RandomAccessFile;
 
-enum ArrayType { INT8, UINT8, FLOAT32, UNKNOWN };
+enum ArrayType { INT8, UINT8, FLOAT32, FLOAT64, UNKNOWN };
 
 int GetValueSize(ArrayType type);
 

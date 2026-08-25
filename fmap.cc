@@ -188,8 +188,10 @@ bool ToParquetConvertedType(ArrayType type,
       return true;
     case ArrayType::FLOAT32:
       return false;
+    case ArrayType::FLOAT64:
+      return false;
     default:
-      throw std::runtime_error("Unsupported array type");
+      throw std::runtime_error("Unsupported array data type");
   }
 }
 
@@ -200,8 +202,10 @@ parquet::format::Type::type ToParquetType(ArrayType type) {
       return parquet::format::Type::INT32;
     case ArrayType::FLOAT32:
       return parquet::format::Type::FLOAT;
+    case ArrayType::FLOAT64:
+      return parquet::format::Type::DOUBLE;
     default:
-      throw std::runtime_error("Unsupported array type");
+      throw std::runtime_error("Unsupported array data type");
   }
 }
 

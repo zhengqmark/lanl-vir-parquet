@@ -81,6 +81,8 @@ FileMap* ParseVtkDataArray(
     type = ArrayType::UINT8;
   } else if (t == "Float32") {
     type = ArrayType::FLOAT32;
+  } else if (t == "Float64") {
+    type = ArrayType::FLOAT64;
   } else {
     throw std::runtime_error("Unsupported data array type");
   }
