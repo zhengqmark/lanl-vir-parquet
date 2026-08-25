@@ -133,7 +133,8 @@ void ExtractPointsInfo(
   vtkXMLDataElement* pts = root->LookupElementWithName("Points");
   if (pts->GetNumberOfNestedElements() > 0) {
     vtkXMLDataElement* const arr = pts->GetNestedElement(0);
-    CopyAttrs(&(*points_info)[arr->GetName()], arr);
+    const char* name = arr->GetAttribute("Name");
+    CopyAttrs(&(*points_info)[name], arr);
   }
 }
 
