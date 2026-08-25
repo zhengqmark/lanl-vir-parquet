@@ -39,6 +39,9 @@
 #include <vtkXMLDataElement.h>
 #include <vtkXMLDataParser.h>
 #include <vtkXMLImageDataReader.h>
+#include <vtkXMLStructuredGridReader.h>
+
+#include <string_view>
 
 namespace {
 
@@ -66,7 +69,7 @@ FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
   }
 }
 
-FileMap* ParseFieldArray(
+FileMap* ParseVtkDataArray(
     RandomAccessFile* file, const std::string& name, CompressionType codec,
     const std::unordered_map<std::string, std::string>& map,
     uint64_t appended_data_pos) {
@@ -79,7 +82,7 @@ FileMap* ParseFieldArray(
   } else if (t == "Float32") {
     type = ArrayType::FLOAT32;
   } else {
-    throw std::runtime_error("Unsupported point array type");
+    throw std::runtime_error("Unsupported data array type");
   }
   const std::string& format = map.at("format");
   if (format == "appended") {
@@ -87,11 +90,11 @@ FileMap* ParseFieldArray(
         file, name, type, codec,
         atoll(map.at("offset").c_str()) + appended_data_pos);
   } else {
-    throw std::runtime_error("Unsupported point array format");
+    throw std::runtime_error("Unsupported data array format");
   }
 }
 
-Dir* ParseFieldData(
+Dir* ParseGroupedArrayData(
     RandomAccessFile* file, CompressionType codec,
     const std::unordered_map<
         std::string, std::unordered_map<std::string, std::string>>& arr_info,
@@ -102,7 +105,7 @@ Dir* ParseFieldData(
     if (name == "vtkValidPointMask") continue;
     if (name == "vtkGhostType") continue;
 #endif
-    maps.insert({name, std::unique_ptr<FileMap>(ParseFieldArray(
+    maps.insert({name, std::unique_ptr<FileMap>(ParseVtkDataArray(
                            file, name, codec, info, appended_data_pos))});
   }
   return new ArrayDir(std::move(maps), file, false);
@@ -120,44 +123,65 @@ CompressionType IdentifyCompressionType(vtkDataCompressor* compr) {
   }
 }
 
-VtkTree* ParseVtiFile(const char* fname) {
+void ExtractPointsInfo(
+    vtkXMLDataElement* root,
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, std::string>>*
+        points_info) {
+  vtkXMLDataElement* pts = root->LookupElementWithName("Points");
+  if (pts->GetNumberOfNestedElements() > 0) {
+    vtkXMLDataElement* const arr = pts->GetNestedElement(0);
+    CopyAttrs(&(*points_info)[arr->GetName()], arr);
+  }
+}
+
+void ExtractFieldInfo(
+    vtkXMLReader* reader, vtkXMLDataElement* root,
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, std::string>>*
+        point_arr_info,
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, std::string>>*
+        cell_arr_info) {
+  vtkXMLDataElement* pd = root->LookupElementWithName("PointData");
+  for (int i = 0; i < reader->GetNumberOfPointArrays(); i++) {
+    CopyAttrs(&(*point_arr_info)[reader->GetPointArrayName(i)],
+              pd->GetNestedElement(i));
+  }
+  vtkXMLDataElement* cd = root->LookupElementWithName("CellData");
+  for (int i = 0; i < reader->GetNumberOfCellArrays(); i++) {
+    CopyAttrs(&(*cell_arr_info)[reader->GetCellArrayName(i)],
+              cd->GetNestedElement(i));
+  }
+}
+
+VtkTree* ParseVtsFile(const char* fname) {
   std::unordered_map<std::string, std::string> root_attrs;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       point_arr_info;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
+      points_info;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       cell_arr_info;
-  uint64_t appended_data_pos = 0;
-  CompressionType codec;
 
-  {
-    vtkNew<vtkXMLImageDataReader> reader;
-    reader->SetFileName(fname);
-    if (!reader->UpdateInformation()) {
-      throw std::runtime_error(
-          "Failed to parse the input vtk file. Please make sure the file "
-          "exists and is valid.");
-    }
-    vtkXMLDataParser* parser = reader->GetXMLParser();
-    codec = IdentifyCompressionType(parser->GetCompressor());
-    appended_data_pos = parser->GetAppendedDataPosition();
-    vtkXMLDataElement* root = parser->GetRootElement();
-    CopyAttrs(&root_attrs, root);
-    CopyAttrs(&root_attrs, root->FindNestedElementWithName("ImageData"));
-    {
-      vtkXMLDataElement* pd = root->LookupElementWithName("PointData");
-      for (int i = 0; i < reader->GetNumberOfPointArrays(); i++) {
-        CopyAttrs(&point_arr_info[reader->GetPointArrayName(i)],
-                  pd->GetNestedElement(i));
-      }
-    }
-    {
-      vtkXMLDataElement* pd = root->LookupElementWithName("CellData");
-      for (int i = 0; i < reader->GetNumberOfCellArrays(); i++) {
-        CopyAttrs(&cell_arr_info[reader->GetCellArrayName(i)],
-                  pd->GetNestedElement(i));
-      }
-    }
+  vtkNew<vtkXMLStructuredGridReader> reader;
+  reader->SetFileName(fname);
+  if (!reader->UpdateInformation()) {
+    throw std::runtime_error(
+        "Failed to parse the input vtk file. Please make sure the file exists "
+        "and is valid.");
   }
+
+  vtkXMLDataParser* parser = reader->GetXMLParser();
+  const CompressionType codec =
+      IdentifyCompressionType(parser->GetCompressor());
+  const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
+
+  vtkXMLDataElement* root = parser->GetRootElement();
+  CopyAttrs(&root_attrs, root);
+  CopyAttrs(&root_attrs, root->FindNestedElementWithName("StructuredGrid"));
+  ExtractFieldInfo(reader, root, &point_arr_info, &cell_arr_info);
+  ExtractPointsInfo(root, &points_info);
 
   struct stat statbuf;
   std::unique_ptr<RandomAccessFile> file(NewOSFile(fname, &statbuf));
@@ -165,14 +189,70 @@ VtkTree* ParseVtiFile(const char* fname) {
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
   subdirs.insert({"pointdata",
-                  std::unique_ptr<Dir>(ParseFieldData(
+                  std::unique_ptr<Dir>(ParseGroupedArrayData(
                       file.get(), codec, point_arr_info, appended_data_pos))});
   subdirs.insert(
-      {"celldata", std::unique_ptr<Dir>(ParseFieldData(
+      {"points", std::unique_ptr<Dir>(ParseGroupedArrayData(
+                     file.get(), codec, points_info, appended_data_pos))});
+  subdirs.insert(
+      {"celldata", std::unique_ptr<Dir>(ParseGroupedArrayData(
                        file.get(), codec, cell_arr_info, appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
+VtkTree* ParseVtiFile(const char* fname) {
+  std::unordered_map<std::string, std::string> root_attrs;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
+      point_arr_info;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
+      cell_arr_info;
+
+  vtkNew<vtkXMLImageDataReader> reader;
+  reader->SetFileName(fname);
+  if (!reader->UpdateInformation()) {
+    throw std::runtime_error(
+        "Failed to parse the input vtk file. Please make sure the file exists "
+        "and is valid.");
+  }
+
+  vtkXMLDataParser* parser = reader->GetXMLParser();
+  const CompressionType codec =
+      IdentifyCompressionType(parser->GetCompressor());
+  const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
+
+  vtkXMLDataElement* root = parser->GetRootElement();
+  CopyAttrs(&root_attrs, root);
+  CopyAttrs(&root_attrs, root->FindNestedElementWithName("ImageData"));
+  ExtractFieldInfo(reader, root, &point_arr_info, &cell_arr_info);
+
+  struct stat statbuf;
+  std::unique_ptr<RandomAccessFile> file(NewOSFile(fname, &statbuf));
+  std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
+  subdirs.insert({"METADATA", std::unique_ptr<Dir>(
+                                  new MetadataDir(std::move(root_attrs)))});
+  subdirs.insert({"pointdata",
+                  std::unique_ptr<Dir>(ParseGroupedArrayData(
+                      file.get(), codec, point_arr_info, appended_data_pos))});
+  subdirs.insert(
+      {"celldata", std::unique_ptr<Dir>(ParseGroupedArrayData(
+                       file.get(), codec, cell_arr_info, appended_data_pos))});
+  return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
+}
+
+inline bool EndsWith(std::string_view str, std::string_view suffix) {
+  return str.size() >= suffix.size() &&
+         str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 }  // namespace
 
-VtkTree* ParseVtkFile(const char* fname) { return ParseVtiFile(fname); }
+VtkTree* ParseVtkFile(const char* fname) {
+  if (EndsWith(fname, ".vti")) {
+    return ParseVtiFile(fname);
+  }
+  if (EndsWith(fname, ".vts")) {
+    return ParseVtsFile(fname);
+  }
+
+  throw std::runtime_error("Unsupported vtk file format");
+}
