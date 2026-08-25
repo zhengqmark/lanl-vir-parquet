@@ -96,7 +96,7 @@ FileMap* ParseVtkDataArray(
   }
 }
 
-Dir* ParseGroupedArrayData(
+Dir* ParseArrayGroup(
     RandomAccessFile* file, CompressionType codec,
     const std::unordered_map<
         std::string, std::unordered_map<std::string, std::string>>& arr_info,
@@ -138,7 +138,7 @@ void ExtractPointsInfo(
   }
 }
 
-void ExtractFieldInfo(
+void ExtractFieldArrayInfo(
     vtkXMLReader* reader, vtkXMLDataElement* root,
     std::unordered_map<std::string,
                        std::unordered_map<std::string, std::string>>*
@@ -183,7 +183,7 @@ VtkTree* ParseVtsFile(const char* fname) {
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName("StructuredGrid"));
-  ExtractFieldInfo(reader, root, &point_arr_info, &cell_arr_info);
+  ExtractFieldArrayInfo(reader, root, &point_arr_info, &cell_arr_info);
   ExtractPointsInfo(root, &points_info);
 
   struct stat statbuf;
@@ -192,13 +192,13 @@ VtkTree* ParseVtsFile(const char* fname) {
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
   subdirs.insert({"pointdata",
-                  std::unique_ptr<Dir>(ParseGroupedArrayData(
+                  std::unique_ptr<Dir>(ParseArrayGroup(
                       file.get(), codec, point_arr_info, appended_data_pos))});
   subdirs.insert(
-      {"points", std::unique_ptr<Dir>(ParseGroupedArrayData(
+      {"points", std::unique_ptr<Dir>(ParseArrayGroup(
                      file.get(), codec, points_info, appended_data_pos))});
   subdirs.insert(
-      {"celldata", std::unique_ptr<Dir>(ParseGroupedArrayData(
+      {"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
                        file.get(), codec, cell_arr_info, appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
@@ -226,7 +226,7 @@ VtkTree* ParseVtiFile(const char* fname) {
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName("ImageData"));
-  ExtractFieldInfo(reader, root, &point_arr_info, &cell_arr_info);
+  ExtractFieldArrayInfo(reader, root, &point_arr_info, &cell_arr_info);
 
   struct stat statbuf;
   std::unique_ptr<RandomAccessFile> file(NewOSFile(fname, &statbuf));
@@ -234,10 +234,10 @@ VtkTree* ParseVtiFile(const char* fname) {
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
   subdirs.insert({"pointdata",
-                  std::unique_ptr<Dir>(ParseGroupedArrayData(
+                  std::unique_ptr<Dir>(ParseArrayGroup(
                       file.get(), codec, point_arr_info, appended_data_pos))});
   subdirs.insert(
-      {"celldata", std::unique_ptr<Dir>(ParseGroupedArrayData(
+      {"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
                        file.get(), codec, cell_arr_info, appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
