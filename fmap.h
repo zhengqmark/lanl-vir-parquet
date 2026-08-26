@@ -84,8 +84,8 @@ class MapBuilder {
   std::string direct_buf_;
 };
 
-FileMap* BuildMap(const std::string& name, ArrayType type,
-                  CompressionType codec, const CompressedArray& arr);
+FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
+                  const CompressedArray& arr);
 
-FileMap* BuildMap(const std::string& name, ArrayType type,
+FileMap* BuildMap(const std::string& name, DataType type,
                   const UncompressedArray& arr);

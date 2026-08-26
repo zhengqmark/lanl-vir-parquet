@@ -38,9 +38,9 @@
 
 class RandomAccessFile;
 
-enum ArrayType { INT8, UINT8, FLOAT32, FLOAT64, UNKNOWN };
+enum DataType { INT8, UINT8, FLOAT32, FLOAT64, UNKNOWN };
 
-int GetValueSize(ArrayType type);
+int GetValueSize(DataType type);
 
 enum CompressionType { NONE, ZLIB, LZ4, UNKNOWN_COMPRESSION };
 

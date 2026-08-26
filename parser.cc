@@ -53,7 +53,7 @@ inline void CopyAttrs(std::unordered_map<std::string, std::string>* des,
 }
 
 FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
-                            ArrayType type, CompressionType codec,
+                            DataType type, CompressionType codec,
                             uint64_t offset) {
   if (codec == CompressionType::NONE) {
     UncompressedArray arr;
@@ -73,16 +73,16 @@ FileMap* ParseVtkDataArray(
     RandomAccessFile* file, const std::string& name, CompressionType codec,
     const std::unordered_map<std::string, std::string>& map,
     uint64_t appended_data_pos) {
-  ArrayType type = ArrayType::UNKNOWN;
+  DataType type = DataType::UNKNOWN;
   const std::string& t = map.at("type");
   if (t == "Int8") {
-    type = ArrayType::INT8;
+    type = DataType::INT8;
   } else if (t == "UInt8") {
-    type = ArrayType::UINT8;
+    type = DataType::UINT8;
   } else if (t == "Float32") {
-    type = ArrayType::FLOAT32;
+    type = DataType::FLOAT32;
   } else if (t == "Float64") {
-    type = ArrayType::FLOAT64;
+    type = DataType::FLOAT64;
   } else {
     throw std::runtime_error("Unsupported data array type");
   }

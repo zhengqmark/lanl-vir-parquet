@@ -177,32 +177,32 @@ uint32_t AppendPage(ThriftSerializer* serializer, MapBuilder* builder,
   return len;
 }
 
-bool ToParquetConvertedType(ArrayType type,
+bool ToParquetConvertedType(DataType type,
                             parquet::format::ConvertedType::type* converted) {
   switch (type) {
-    case ArrayType::INT8:
+    case DataType::INT8:
       *converted = parquet::format::ConvertedType::INT_8;
       return true;
-    case ArrayType::UINT8:
+    case DataType::UINT8:
       *converted = parquet::format::ConvertedType::UINT_8;
       return true;
-    case ArrayType::FLOAT32:
+    case DataType::FLOAT32:
       return false;
-    case ArrayType::FLOAT64:
+    case DataType::FLOAT64:
       return false;
     default:
       throw std::runtime_error("Unsupported array data type");
   }
 }
 
-parquet::format::Type::type ToParquetType(ArrayType type) {
+parquet::format::Type::type ToParquetType(DataType type) {
   switch (type) {
-    case ArrayType::INT8:
-    case ArrayType::UINT8:
+    case DataType::INT8:
+    case DataType::UINT8:
       return parquet::format::Type::INT32;
-    case ArrayType::FLOAT32:
+    case DataType::FLOAT32:
       return parquet::format::Type::FLOAT;
-    case ArrayType::FLOAT64:
+    case DataType::FLOAT64:
       return parquet::format::Type::DOUBLE;
     default:
       throw std::runtime_error("Unsupported array data type");
@@ -225,7 +225,7 @@ parquet::format::CompressionCodec::type ToParquetCodec(CompressionType type) {
 }
 
 uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
-                      const std::string& name, ArrayType type,
+                      const std::string& name, DataType type,
                       CompressionType codec, int64_t total_compressed_size,
                       int64_t total_uncompressed_size, int64_t total_count) {
   parquet::format::FileMetaData file_meta_data;
@@ -304,8 +304,8 @@ uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
 
 }  // namespace
 
-FileMap* BuildMap(const std::string& name, ArrayType type,
-                  CompressionType codec, const CompressedArray& arr) {
+FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
+                  const CompressedArray& arr) {
   char par1[] = "PAR1";
   int64_t total_compressed_size = 0;
   int64_t total_uncompressed_size = 0;
@@ -345,7 +345,7 @@ FileMap* BuildMap(const std::string& name, ArrayType type,
   return builder.Finish();
 }
 
-FileMap* BuildMap(const std::string& name, ArrayType type,
+FileMap* BuildMap(const std::string& name, DataType type,
                   const UncompressedArray& arr) {
   char par1[] = "PAR1";
   int64_t total_compressed_size = 0;
