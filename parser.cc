@@ -54,7 +54,7 @@ inline void CopyAttrs(std::unordered_map<std::string, std::string>* des,
 
 FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
                             DataType type, CompressionType codec,
-                            uint64_t offset) {
+                            DataType header_type, uint64_t offset) {
   if (codec == CompressionType::NONE) {
     UncompressedArray arr;
     ParseUncompressed(file, offset, &arr);
@@ -71,6 +71,7 @@ FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
 
 FileMap* ParseVtkDataArray(
     RandomAccessFile* file, const std::string& name, CompressionType codec,
+    DataType header_type,
     const std::unordered_map<std::string, std::string>& map,
     uint64_t appended_data_pos) {
   DataType type = DataType::UNKNOWN;
@@ -89,7 +90,7 @@ FileMap* ParseVtkDataArray(
   const std::string& format = map.at("format");
   if (format == "appended") {
     return ParseAppendedArray(
-        file, name, type, codec,
+        file, name, type, codec, header_type,
         atoll(map.at("offset").c_str()) + appended_data_pos);
   } else {
     throw std::runtime_error("Unsupported data array format");
@@ -97,7 +98,7 @@ FileMap* ParseVtkDataArray(
 }
 
 Dir* ParseArrayGroup(
-    RandomAccessFile* file, CompressionType codec,
+    RandomAccessFile* file, CompressionType codec, DataType header_type,
     const std::unordered_map<
         std::string, std::unordered_map<std::string, std::string>>& arr_info,
     uint64_t appended_data_pos) {
@@ -107,8 +108,9 @@ Dir* ParseArrayGroup(
     if (name == "vtkValidPointMask") continue;
     if (name == "vtkGhostType") continue;
 #endif
-    maps.insert({name, std::unique_ptr<FileMap>(ParseVtkDataArray(
-                           file, name, codec, info, appended_data_pos))});
+    maps.insert(
+        {name, std::unique_ptr<FileMap>(ParseVtkDataArray(
+                   file, name, codec, header_type, info, appended_data_pos))});
   }
   return new ArrayDir(std::move(maps), file, false);
 }
@@ -179,6 +181,7 @@ VtkTree* ParseVtsFile(const char* fname) {
   const CompressionType codec =
       IdentifyCompressionType(parser->GetCompressor());
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
+  const DataType header_type = DataType::UNKNOWN;
 
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
@@ -191,15 +194,15 @@ VtkTree* ParseVtsFile(const char* fname) {
   std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
-  subdirs.insert({"pointdata",
-                  std::unique_ptr<Dir>(ParseArrayGroup(
-                      file.get(), codec, point_arr_info, appended_data_pos))});
-  subdirs.insert(
-      {"points", std::unique_ptr<Dir>(ParseArrayGroup(
-                     file.get(), codec, points_info, appended_data_pos))});
-  subdirs.insert(
-      {"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
-                       file.get(), codec, cell_arr_info, appended_data_pos))});
+  subdirs.insert({"pointdata", std::unique_ptr<Dir>(ParseArrayGroup(
+                                   file.get(), codec, header_type,
+                                   point_arr_info, appended_data_pos))});
+  subdirs.insert({"points", std::unique_ptr<Dir>(ParseArrayGroup(
+                                file.get(), codec, header_type, points_info,
+                                appended_data_pos))});
+  subdirs.insert({"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
+                                  file.get(), codec, header_type, cell_arr_info,
+                                  appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
@@ -222,6 +225,7 @@ VtkTree* ParseVtiFile(const char* fname) {
   const CompressionType codec =
       IdentifyCompressionType(parser->GetCompressor());
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
+  const DataType header_type = DataType::UNKNOWN;
 
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
@@ -233,12 +237,12 @@ VtkTree* ParseVtiFile(const char* fname) {
   std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
   subdirs.insert({"METADATA", std::unique_ptr<Dir>(
                                   new MetadataDir(std::move(root_attrs)))});
-  subdirs.insert({"pointdata",
-                  std::unique_ptr<Dir>(ParseArrayGroup(
-                      file.get(), codec, point_arr_info, appended_data_pos))});
-  subdirs.insert(
-      {"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
-                       file.get(), codec, cell_arr_info, appended_data_pos))});
+  subdirs.insert({"pointdata", std::unique_ptr<Dir>(ParseArrayGroup(
+                                   file.get(), codec, header_type,
+                                   point_arr_info, appended_data_pos))});
+  subdirs.insert({"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
+                                  file.get(), codec, header_type, cell_arr_info,
+                                  appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
