@@ -80,6 +80,10 @@ FileMap* ParseVtkDataArray(
     type = DataType::INT8;
   } else if (t == "UInt8") {
     type = DataType::UINT8;
+  } else if (t == "UInt32") {
+    type = DataType::UINT32;
+  } else if (t == "UInt64") {
+    type = DataType::UINT64;
   } else if (t == "Float32") {
     type = DataType::FLOAT32;
   } else if (t == "Float64") {

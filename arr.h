@@ -38,7 +38,7 @@
 
 class RandomAccessFile;
 
-enum DataType { INT8, UINT8, FLOAT32, FLOAT64, UNKNOWN };
+enum DataType { INT8, UINT8, UINT32, UINT64, FLOAT32, FLOAT64, UNKNOWN };
 
 int GetValueSize(DataType type);
 

@@ -81,11 +81,13 @@ int GetValueSize(DataType type) {
     case DataType::INT8:
     case DataType::UINT8:
       return 1;
+    case DataType::UINT32:
     case DataType::FLOAT32:
       return 4;
+    case DataType::UINT64:
     case DataType::FLOAT64:
       return 8;
     default:
-      throw std::runtime_error("Unknown array data type");
+      throw std::runtime_error("Unknown data type");
   }
 }
