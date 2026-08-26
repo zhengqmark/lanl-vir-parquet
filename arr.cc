@@ -40,19 +40,19 @@
 
 CompressedArray::CompressedArray() {}
 
-void ParseCompressed(RandomAccessFile* file, uint64_t offset,
-                     CompressedArray* result) {
+void ParseCompressed64(RandomAccessFile* file, uint64_t offset,
+                       CompressedArray* result) {
   uint64_t info[3];
   uint64_t nr = file->Pread(info, 24, offset);
   if (nr != 24) {
-    throw std::runtime_error("Fail to read array header");
+    throw std::runtime_error("Fail to read data array header");
   }
 
   uint64_t* compressed_block_size = new uint64_t[info[0]];
   nr = file->Pread(compressed_block_size, 8 * info[0], offset + 24);
   if (nr != 8 * info[0]) {
     delete[] compressed_block_size;
-    throw std::runtime_error("Fail to read block sizes");
+    throw std::runtime_error("Fail to read array block sizes");
   }
 
   result->num_blks = info[0];
@@ -62,10 +62,37 @@ void ParseCompressed(RandomAccessFile* file, uint64_t offset,
   result->data_start = offset + 24 + 8 * info[0];
 }
 
+void ParseCompressed32(RandomAccessFile* file, uint64_t offset,
+                       CompressedArray* result) {
+  uint32_t info[3];
+  uint64_t nr = file->Pread(info, 12, offset);
+  if (nr != 12) {
+    throw std::runtime_error("Fail to read data array header");
+  }
+
+  uint32_t* compressed_block_size = new uint32_t[info[0]];
+  nr = file->Pread(compressed_block_size, 4 * info[0], offset + 12);
+  if (nr != 4 * info[0]) {
+    delete[] compressed_block_size;
+    throw std::runtime_error("Fail to read array block sizes");
+  }
+
+  result->num_blks = info[0];
+  result->blk_sz = info[1];
+  result->last_blk_sz = info[2];
+  uint64_t* compressed_block_size64 = new uint64_t[info[0]];
+  for (int i = 0; i < info[0]; i++) {
+    compressed_block_size64[i] = compressed_block_size[i];
+  }
+  delete[] compressed_block_size;
+  result->compressed_blk_sz = compressed_block_size64;
+  result->data_start = offset + 12 + 4 * info[0];
+}
+
 UncompressedArray::UncompressedArray() {}
 
-void ParseUncompressed(RandomAccessFile* file, uint64_t offset,
-                       UncompressedArray* result) {
+void ParseUncompressed64(RandomAccessFile* file, uint64_t offset,
+                         UncompressedArray* result) {
   uint64_t bytes;
   uint64_t nr = file->Pread(&bytes, 8, offset);
   if (nr != 8) {
@@ -74,6 +101,18 @@ void ParseUncompressed(RandomAccessFile* file, uint64_t offset,
 
   result->total_bytes = bytes;
   result->data_start = offset + 8;
+}
+
+void ParseUncompressed32(RandomAccessFile* file, uint64_t offset,
+                         UncompressedArray* result) {
+  uint32_t bytes;
+  uint64_t nr = file->Pread(&bytes, 4, offset);
+  if (nr != 4) {
+    throw std::runtime_error("Fail to read data array header");
+  }
+
+  result->total_bytes = bytes;
+  result->data_start = offset + 4;
 }
 
 int GetValueSize(DataType type) {

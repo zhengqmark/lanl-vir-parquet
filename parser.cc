@@ -57,12 +57,18 @@ FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
                             DataType header_type, uint64_t offset) {
   if (codec == CompressionType::NONE) {
     UncompressedArray arr;
-    ParseUncompressed(file, offset, &arr);
+    if (header_type == DataType::UINT32)
+      ParseUncompressed32(file, offset, &arr);
+    else
+      ParseUncompressed64(file, offset, &arr);
     FileMap* map = BuildMap(name, type, arr);
     return map;
   } else {
     CompressedArray arr;
-    ParseCompressed(file, offset, &arr);
+    if (header_type == DataType::UINT32)
+      ParseCompressed32(file, offset, &arr);
+    else
+      ParseCompressed64(file, offset, &arr);
     FileMap* map = BuildMap(name, type, codec, arr);
     delete[] arr.compressed_blk_sz;
     return map;

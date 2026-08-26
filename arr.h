@@ -53,8 +53,11 @@ struct CompressedArray {
   uint64_t data_start;
 };
 
-void ParseCompressed(RandomAccessFile* file, uint64_t offset,
-                     CompressedArray* result);
+void ParseCompressed64(RandomAccessFile* file, uint64_t offset,
+                       CompressedArray* result);
+
+void ParseCompressed32(RandomAccessFile* file, uint64_t offset,
+                       CompressedArray* result);
 
 struct UncompressedArray {
   UncompressedArray();
@@ -62,5 +65,8 @@ struct UncompressedArray {
   uint64_t data_start;
 };
 
-void ParseUncompressed(RandomAccessFile* file, uint64_t offset,
-                       UncompressedArray* result);
+void ParseUncompressed64(RandomAccessFile* file, uint64_t offset,
+                         UncompressedArray* result);
+
+void ParseUncompressed32(RandomAccessFile* file, uint64_t offset,
+                         UncompressedArray* result);
