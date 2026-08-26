@@ -164,6 +164,17 @@ void ExtractFieldArrayInfo(
   }
 }
 
+DataType ParseHeaderType(
+    const std::unordered_map<std::string, std::string>& map) {
+  const std::string& t = map.at("header_type");
+  if (t == "UInt32") {
+    return DataType::UINT32;
+  } else if (t == "UInt64") {
+    return DataType::UINT64;
+  }
+  throw std::runtime_error("Unknown header type");
+}
+
 VtkTree* ParseVtsFile(const char* fname) {
   std::unordered_map<std::string, std::string> root_attrs;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
@@ -185,10 +196,10 @@ VtkTree* ParseVtsFile(const char* fname) {
   const CompressionType codec =
       IdentifyCompressionType(parser->GetCompressor());
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
-  const DataType header_type = DataType::UNKNOWN;
 
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
+  const DataType header_type = ParseHeaderType(root_attrs);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName("StructuredGrid"));
   ExtractFieldArrayInfo(reader, root, &point_arr_info, &cell_arr_info);
   ExtractPointsInfo(root, &points_info);
@@ -229,10 +240,10 @@ VtkTree* ParseVtiFile(const char* fname) {
   const CompressionType codec =
       IdentifyCompressionType(parser->GetCompressor());
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
-  const DataType header_type = DataType::UNKNOWN;
 
   vtkXMLDataElement* root = parser->GetRootElement();
   CopyAttrs(&root_attrs, root);
+  const DataType header_type = ParseHeaderType(root_attrs);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName("ImageData"));
   ExtractFieldArrayInfo(reader, root, &point_arr_info, &cell_arr_info);
 
