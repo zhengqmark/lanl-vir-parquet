@@ -12,6 +12,7 @@ Virtual Parquet works with a wide range of existing tools in the Parquet ecosyst
 - [DuckDB CLI](https://duckdb.org/docs/lts/clients/cli/overview)
 - [Datafusion CLI](https://datafusion.apache.org/user-guide/cli/index.html)
 - [Datanomy](https://github.com/raulcd/datanomy)
+- [Data Wrangler](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.datawrangler)
 - [Hardwood](https://hardwood.dev/latest/)
 - [Nail](https://github.com/Vitruves/nail-parquet)
 - [Opteryx](https://github.com/mabel-dev/opteryx)
