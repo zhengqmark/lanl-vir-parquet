@@ -247,22 +247,19 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   struct stat statbuf;
   std::unique_ptr<RandomAccessFile> file(NewOSFile(fname, &statbuf));
   std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
-  subdirs.insert({"METADATA", std::unique_ptr<Dir>(
-                                  new MetadataDir(std::move(root_attrs)))});
-  subdirs.insert({"pointdata", std::unique_ptr<Dir>(ParseArrayGroup(
-                                   file.get(), codec, header_type,
-                                   point_arr_info, appended_data_pos))});
+  subdirs.emplace("METADATA", new MetadataDir(std::move(root_attrs)));
+  subdirs.emplace("pointdata",
+                  ParseArrayGroup(file.get(), codec, header_type,
+                                  point_arr_info, appended_data_pos));
   if (load_points)
-    subdirs.insert({"points", std::unique_ptr<Dir>(ParseArrayGroup(
-                                  file.get(), codec, header_type, points_info,
-                                  appended_data_pos))});
-  subdirs.insert({"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
-                                  file.get(), codec, header_type, cell_arr_info,
-                                  appended_data_pos))});
+    subdirs.emplace("points", ParseArrayGroup(file.get(), codec, header_type,
+                                              points_info, appended_data_pos));
+  subdirs.emplace("celldata",
+                  ParseArrayGroup(file.get(), codec, header_type, cell_arr_info,
+                                  appended_data_pos));
   if (load_cells)
-    subdirs.insert({"cells", std::unique_ptr<Dir>(ParseArrayGroup(
-                                 file.get(), codec, header_type, cells_info,
-                                 appended_data_pos))});
+    subdirs.emplace("cells", ParseArrayGroup(file.get(), codec, header_type,
+                                             cells_info, appended_data_pos));
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
