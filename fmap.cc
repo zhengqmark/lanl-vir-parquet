@@ -186,8 +186,14 @@ bool ToParquetConvertedType(DataType type,
     case DataType::UINT8:
       *converted = parquet::format::ConvertedType::UINT_8;
       return true;
+    case DataType::INT32:
+      *converted = parquet::format::ConvertedType::INT_32;
+      return true;
     case DataType::UINT32:
       *converted = parquet::format::ConvertedType::UINT_32;
+      return true;
+    case DataType::INT64:
+      *converted = parquet::format::ConvertedType::INT_64;
       return true;
     case DataType::UINT64:
       *converted = parquet::format::ConvertedType::UINT_64;
@@ -205,8 +211,10 @@ parquet::format::Type::type ToParquetType(DataType type) {
   switch (type) {
     case DataType::INT8:
     case DataType::UINT8:
+    case DataType::INT32:
     case DataType::UINT32:
       return parquet::format::Type::INT32;
+    case DataType::INT64:
     case DataType::UINT64:
       return parquet::format::Type::INT64;
     case DataType::FLOAT32:
