@@ -234,7 +234,11 @@ void* vtk_init_tree_int(const char* fname) {
     return ParseVtkFile(fname);
   } catch (const std::exception& e) {
     fprintf(stderr, "Unable to init vtk tree. %s\n", e.what());
-    exit(EXIT_FAILURE);
+    struct fuse_context* ctx = fuse_get_context();
+    if (ctx && ctx->fuse) {
+      fuse_exit(ctx->fuse);
+    }
+    return nullptr;
   }
 }
 
