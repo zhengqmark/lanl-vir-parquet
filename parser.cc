@@ -124,9 +124,9 @@ Dir* ParseArrayGroup(
     if (name == "vtkValidPointMask") continue;
     if (name == "vtkGhostType") continue;
 #endif
-    maps.insert(
-        {name, std::unique_ptr<FileMap>(ParseVtkDataArray(
-                   file, name, codec, header_type, info, appended_data_pos))});
+    std::string fname = name + ".parquet";
+    maps.emplace(fname, ParseVtkDataArray(file, name, codec, header_type, info,
+                                          appended_data_pos));
   }
   return new ArrayDir(std::move(maps), file, false);
 }
