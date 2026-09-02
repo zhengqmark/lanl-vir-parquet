@@ -210,7 +210,8 @@ vtkXMLReader* CreateReader(const std::string& mesh_type) {
 }
 
 VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
-                              bool load_points, bool load_cells) {
+                              bool load_points = false,
+                              bool load_cells = false) {
   std::unordered_map<std::string, std::string> root_attrs;
   std::unordered_map<std::string, std::unordered_map<std::string, std::string>>
       point_arr_info;
@@ -274,9 +275,8 @@ VtkTree* ParseVtkFile(const char* fname) {
   if (EndsWith(fname, ".vtu"))
     return ParseVtkFileInternal(fname, "UnstructuredGrid", true, true);
   if (EndsWith(fname, ".vts"))
-    return ParseVtkFileInternal(fname, "StructuredGrid", true, false);
-  if (EndsWith(fname, ".vti"))
-    return ParseVtkFileInternal(fname, "ImageData", false, false);
+    return ParseVtkFileInternal(fname, "StructuredGrid", true);
+  if (EndsWith(fname, ".vti")) return ParseVtkFileInternal(fname, "ImageData");
 
   throw std::runtime_error("Unsupported vtk file format");
 }
