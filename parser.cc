@@ -139,14 +139,27 @@ CompressionType IdentifyCompressionType(vtkDataCompressor* compr) {
   }
 }
 
+void ExtractCellsInfo(
+    vtkXMLDataElement* root,
+    std::unordered_map<std::string,
+                       std::unordered_map<std::string, std::string>>*
+        cells_info) {
+  vtkXMLDataElement* parent = root->LookupElementWithName("Cells");
+  for (int i = 0; i < parent->GetNumberOfNestedElements(); i++) {
+    vtkXMLDataElement* const arr = parent->GetNestedElement(i);
+    const char* name = arr->GetAttribute("Name");
+    CopyAttrs(&(*cells_info)[name], arr);
+  }
+}
+
 void ExtractPointsInfo(
     vtkXMLDataElement* root,
     std::unordered_map<std::string,
                        std::unordered_map<std::string, std::string>>*
         points_info) {
-  vtkXMLDataElement* pts = root->LookupElementWithName("Points");
-  if (pts->GetNumberOfNestedElements() > 0) {
-    vtkXMLDataElement* const arr = pts->GetNestedElement(0);
+  vtkXMLDataElement* parent = root->LookupElementWithName("Points");
+  for (int i = 0; i < parent->GetNumberOfNestedElements(); i++) {
+    vtkXMLDataElement* const arr = parent->GetNestedElement(i);
     const char* name = arr->GetAttribute("Name");
     CopyAttrs(&(*points_info)[name], arr);
   }
@@ -222,8 +235,9 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   const DataType header_type = ParseHeaderType(root_attrs);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName(mesh_type));
   ExtractFieldArrayInfo(reader, root, &point_arr_info, &cell_arr_info);
-  if (load_points) {
-    ExtractPointsInfo(root, &points_info);
+  if (load_points) ExtractPointsInfo(root, &points_info);
+  if (load_cells) {
+    ExtractCellsInfo(root, &cells_info);
   }
 
   struct stat statbuf;
@@ -241,6 +255,10 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   subdirs.insert({"celldata", std::unique_ptr<Dir>(ParseArrayGroup(
                                   file.get(), codec, header_type, cell_arr_info,
                                   appended_data_pos))});
+  if (load_cells)
+    subdirs.insert({"cells", std::unique_ptr<Dir>(ParseArrayGroup(
+                                 file.get(), codec, header_type, cells_info,
+                                 appended_data_pos))});
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 
@@ -252,6 +270,8 @@ bool EndsWith(std::string_view str, std::string_view suffix) {
 }  // namespace
 
 VtkTree* ParseVtkFile(const char* fname) {
+  if (EndsWith(fname, ".vtu"))
+    return ParseVtkFileInternal(fname, "UnstructuredGrid", true, true);
   if (EndsWith(fname, ".vts"))
     return ParseVtkFileInternal(fname, "StructuredGrid", true, false);
   if (EndsWith(fname, ".vti"))
