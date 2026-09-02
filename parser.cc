@@ -236,6 +236,12 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
 
   vtkXMLDataElement* root = parser->GetRootElement();
+  vtkXMLDataElement* app = root->FindNestedElementWithName("AppendedData");
+  if (!app) {
+    // OK!
+  } else if (strcmp(app->GetAttribute("encoding"), "raw") != 0) {
+    throw std::runtime_error("Unsupported appended data encoding type");
+  }
   CopyAttrs(&root_attrs, root);
   const DataType header_type = ParseHeaderType(root_attrs);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName(mesh_type));
