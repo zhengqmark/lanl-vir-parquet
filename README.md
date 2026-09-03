@@ -2,7 +2,9 @@
   <img src="logo.jpeg" alt="Virtual Parquet" width="100%">
 </p>
 
-Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from standard VTK files to Parquet, without requiring the data to be converted in advance. Each FUSE file acts as a virtual address map: some regions map to dynamically generated in-memory Parquet metadata, while others map directly to regions of the underlying VTK file. Translations are one-way and read-only. We currently support image data (vti), structured grid (vts), and unstructured grid (vtu) mesh types.
+Virtual Parquet is a FUSE filesystem that provides on-the-fly translation from standard VTK files to Parquet, without requiring the data to be converted in advance. Each FUSE file acts as a virtual address map: some regions map to dynamically generated in-memory Parquet metadata, while others map directly to regions of the underlying VTK file. Translations are one-way and read-only.
+
+We currently support image data (vti), structured grid (vts), and unstructured grid (vtu) mesh types.
 
 # Parquet Tool Compatibility
 
