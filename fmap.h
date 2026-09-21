@@ -81,7 +81,7 @@ class MapBuilder {
   uint64_t bytes_written_;
   std::vector<uint64_t> offsets_;
   // Positive offsets are offsets to the underlying vtk file, relative to
-  // `vtk_start_` - 1, after base64 decoding when applicable. Zero or
+  // `vtk_start_` - 1 before base64 encoding and after base64 decoding. Zero or
   // negative offsets are offsets to the direct buffer.
   std::vector<int64_t> underlying_offsets_;
   std::string direct_buf_;
