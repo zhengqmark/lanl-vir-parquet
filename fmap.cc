@@ -71,10 +71,11 @@ RandomAccessFile* NewOSFile(const char* fname, struct stat* statbuf) {
 
 RandomAccessFile::~RandomAccessFile() {}
 
-FileMap::FileMap(std::vector<uint64_t>&& offsets,
+FileMap::FileMap(uint64_t vtk_start, std::vector<uint64_t>&& offsets,
                  std::vector<int64_t>&& underlying_offsets,
                  std::string&& direct_buf)
-    : offsets_(std::move(offsets)),
+    : vtk_start_(vtk_start),
+      offsets_(std::move(offsets)),
       underlying_offsets_(std::move(underlying_offsets)),
       direct_buf_(std::move(direct_buf)),
       n_(offsets_.size() - 1) {}
@@ -107,8 +108,10 @@ int64_t FileMap::Pread(RandomAccessFile* base, char* buf, uint64_t size,
 int64_t FileMap::Read(RandomAccessFile* base, char* buf, uint64_t region_id,
                       uint64_t region_offset, uint64_t size) const {
   if (underlying_offsets_[region_id] > 0) {
-    return base->Pread(buf, size,
-                       underlying_offsets_[region_id] + region_offset);
+    // underlying_offsets are relative to `vtk_start` - 1
+    return base->Pread(
+        buf, size,
+        vtk_start_ + underlying_offsets_[region_id] - 1 + region_offset);
   } else {
     memcpy(buf, &direct_buf_[-underlying_offsets_[region_id] + region_offset],
            size);
@@ -120,7 +123,8 @@ uint64_t FileMap::file_size() const { return offsets_[n_]; }
 
 FileMap::~FileMap() {}
 
-MapBuilder::MapBuilder() : bytes_written_(0) {}
+MapBuilder::MapBuilder(uint64_t vtk_start)
+    : vtk_start_(vtk_start), bytes_written_(0) {}
 
 MapBuilder::~MapBuilder() {}
 
@@ -140,8 +144,8 @@ void MapBuilder::AddMappedRegion(uint64_t offset, uint64_t size) {
 
 FileMap* MapBuilder::Finish() {
   offsets_.push_back(bytes_written_);  // EOF marking
-  return new FileMap(std::move(offsets_), std::move(underlying_offsets_),
-                     std::move(direct_buf_));
+  return new FileMap(vtk_start_, std::move(offsets_),
+                     std::move(underlying_offsets_), std::move(direct_buf_));
 }
 
 namespace {
@@ -329,16 +333,16 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
   int64_t total_count = 0;
   const int value_size = GetValueSize(type);
   ThriftSerializer serializer;
-  MapBuilder builder;
+  MapBuilder builder(arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t underlying_offset = arr.data_start;
+  uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
   for (int i = 0; i < arr.num_blks - 1; i++) {
     uint32_t compressed_size = arr.compressed_blk_sz[i];
     uint32_t uncompressed_size = arr.blk_sz;
     uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, underlying_offset,
+        AppendPage(&serializer, &builder, value_size, page_offset,
                    compressed_size, uncompressed_size, true);
-    underlying_offset += compressed_size;
+    page_offset += compressed_size;
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
     total_count += uncompressed_size / value_size;
@@ -347,7 +351,7 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
     uint32_t compressed_size = arr.compressed_blk_sz[arr.num_blks - 1];
     uint32_t uncompressed_size = arr.last_blk_sz;
     uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, underlying_offset,
+        AppendPage(&serializer, &builder, value_size, page_offset,
                    compressed_size, uncompressed_size, true);
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
@@ -370,24 +374,24 @@ FileMap* BuildMap(const std::string& name, DataType type,
   int64_t total_count = 0;
   const int value_size = GetValueSize(type);
   ThriftSerializer serializer;
-  MapBuilder builder;
+  MapBuilder builder(arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t underlying_offset = arr.data_start;
+  uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
   uint64_t blk_sz = 32768;
   uint64_t num_blks = (arr.total_bytes + blk_sz - 1) / blk_sz;  // TODO
   uint64_t last_blk_sz = (arr.total_bytes - 1) % 32768 + 1;
   for (int i = 0; i < num_blks - 1; i++) {
     uint32_t header_size = AppendPage(&serializer, &builder, value_size,
-                                      underlying_offset, blk_sz, blk_sz, false);
-    underlying_offset += blk_sz;
+                                      page_offset, blk_sz, blk_sz, false);
+    page_offset += blk_sz;
     total_compressed_size += header_size + blk_sz;
     total_uncompressed_size += header_size + blk_sz;
     total_count += blk_sz / value_size;
   }
   {
     uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, underlying_offset,
-                   last_blk_sz, last_blk_sz, false);
+        AppendPage(&serializer, &builder, value_size, page_offset, last_blk_sz,
+                   last_blk_sz, false);
     total_compressed_size += header_size + last_blk_sz;
     total_uncompressed_size += header_size + last_blk_sz;
     total_count += last_blk_sz / value_size;
