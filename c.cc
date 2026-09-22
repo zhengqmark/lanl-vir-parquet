@@ -208,7 +208,13 @@ int Open(VtkTree* tree, const char* path, struct fuse_file_info* fi) {
 }
 
 int Read(char* buf, size_t size, off_t off, struct fuse_file_info* fi) {
-  return reinterpret_cast<RandomAccessFile*>(fi->fh)->Pread(buf, size, off);
+  int nr = reinterpret_cast<RandomAccessFile*>(fi->fh)->Pread(buf, size, off);
+  if (nr == -1) {
+    // TODO: propagate underlying pread64 errors to applications
+    return -EIO;
+  } else {
+    return nr;
+  }
 }
 
 int Release(struct fuse_file_info* fi) {
