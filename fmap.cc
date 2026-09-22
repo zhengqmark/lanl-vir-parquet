@@ -110,7 +110,7 @@ int64_t FileMap::Pread(RandomAccessFile* base, char* buf, uint64_t size,
 
 int64_t FileMap::Read(RandomAccessFile* base, char* buf, uint64_t region_id,
                       uint64_t region_offset, uint64_t size) const {
-  // Positive offsets are post-decoding VTK file locations relative to
+  // Positive offsets are encoding-agnostic VTK file locations relative to
   // `data_start_`, incremented by 1 to ensure positivity.
   if (underlying_offsets_[region_id] > 0) {
     if (pending_base64_decoding_) {
@@ -150,7 +150,8 @@ void MapBuilder::AddDirect(void* buf, uint64_t size) {
 
 void MapBuilder::AddMappedRegion(uint64_t offset, uint64_t size) {
   offsets_.push_back(bytes_written_);
-  underlying_offsets_.push_back(int64_t(offset));
+  // We artificially increment all offsets here by 1 to ensure their positivity
+  underlying_offsets_.push_back(1 + int64_t(offset));
   bytes_written_ += size;
 }
 
@@ -347,15 +348,13 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
   ThriftSerializer serializer;
   MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t page_offset = 1;  // We artificially increment all offsets by 1 to
-                             // ensure their positivity
+  uint64_t offset = 0;
   for (int i = 0; i < arr.num_blks - 1; i++) {
     uint32_t compressed_size = arr.compressed_blk_sz[i];
     uint32_t uncompressed_size = arr.blk_sz;
-    uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, page_offset,
-                   compressed_size, uncompressed_size, true);
-    page_offset += compressed_size;
+    uint32_t header_size = AppendPage(&serializer, &builder, value_size, offset,
+                                      compressed_size, uncompressed_size, true);
+    offset += compressed_size;
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
     total_count += uncompressed_size / value_size;
@@ -363,9 +362,8 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
   {
     uint32_t compressed_size = arr.compressed_blk_sz[arr.num_blks - 1];
     uint32_t uncompressed_size = arr.last_blk_sz;
-    uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, page_offset,
-                   compressed_size, uncompressed_size, true);
+    uint32_t header_size = AppendPage(&serializer, &builder, value_size, offset,
+                                      compressed_size, uncompressed_size, true);
     total_compressed_size += header_size + compressed_size;
     total_uncompressed_size += header_size + uncompressed_size;
     total_count += uncompressed_size / value_size;
@@ -389,23 +387,21 @@ FileMap* BuildMap(const std::string& name, DataType type,
   ThriftSerializer serializer;
   MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t page_offset = 1;  // We artificially increment all offsets by 1 to
-                             // ensure their positivity
+  uint64_t offset = 0;
   uint64_t blk_sz = 32768;
   uint64_t num_blks = (arr.total_bytes + blk_sz - 1) / blk_sz;  // TODO
   uint64_t last_blk_sz = (arr.total_bytes - 1) % 32768 + 1;
   for (int i = 0; i < num_blks - 1; i++) {
-    uint32_t header_size = AppendPage(&serializer, &builder, value_size,
-                                      page_offset, blk_sz, blk_sz, false);
-    page_offset += blk_sz;
+    uint32_t header_size = AppendPage(&serializer, &builder, value_size, offset,
+                                      blk_sz, blk_sz, false);
+    offset += blk_sz;
     total_compressed_size += header_size + blk_sz;
     total_uncompressed_size += header_size + blk_sz;
     total_count += blk_sz / value_size;
   }
   {
-    uint32_t header_size =
-        AppendPage(&serializer, &builder, value_size, page_offset, last_blk_sz,
-                   last_blk_sz, false);
+    uint32_t header_size = AppendPage(&serializer, &builder, value_size, offset,
+                                      last_blk_sz, last_blk_sz, false);
     total_compressed_size += header_size + last_blk_sz;
     total_uncompressed_size += header_size + last_blk_sz;
     total_count += last_blk_sz / value_size;
