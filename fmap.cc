@@ -347,7 +347,8 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
   ThriftSerializer serializer;
   MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
+  uint64_t page_offset = 1;  // We artificially increment all offsets by 1 to
+                             // ensure their positivity
   for (int i = 0; i < arr.num_blks - 1; i++) {
     uint32_t compressed_size = arr.compressed_blk_sz[i];
     uint32_t uncompressed_size = arr.blk_sz;
@@ -388,7 +389,8 @@ FileMap* BuildMap(const std::string& name, DataType type,
   ThriftSerializer serializer;
   MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
-  uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
+  uint64_t page_offset = 1;  // We artificially increment all offsets by 1 to
+                             // ensure their positivity
   uint64_t blk_sz = 32768;
   uint64_t num_blks = (arr.total_bytes + blk_sz - 1) / blk_sz;  // TODO
   uint64_t last_blk_sz = (arr.total_bytes - 1) % 32768 + 1;
