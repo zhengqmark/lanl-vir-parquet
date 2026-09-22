@@ -50,7 +50,7 @@ RandomAccessFile* NewOSFile(const char* fname, struct stat* statbuf);
 
 class FileMap {
  public:
-  FileMap(bool pending_base64_decoding, uint64_t vtk_start,
+  FileMap(bool pending_base64_decoding, uint64_t data_start,
           std::vector<uint64_t>&& offsets,
           std::vector<int64_t>&& underlying_offsets, std::string&& direct_buf);
   int64_t Pread(RandomAccessFile* base, char* buf, uint64_t size,
@@ -62,12 +62,12 @@ class FileMap {
   int64_t Read(RandomAccessFile* base, char* buf, uint64_t region_id,
                uint64_t region_offset, uint64_t size) const;
   const bool pending_base64_decoding_;
-  const uint64_t vtk_start_;
+  const uint64_t data_start_;
   const std::vector<uint64_t> offsets_;
-  // Offsets may be positive, zero, or negative. Positive offsets refer to
-  // positions in the underlying VTK file relative to `vtk_start_ - 1`, before
-  // base64 encoding. Zero or negative offsets refer to positions in the direct
-  // buffer.
+  // Offsets may be positive, zero, or negative. Positive offsets are
+  // post-decoding locations in the underlying VTK file, stored as their
+  // distance from `data_start_` plus 1 to ensure positivity. Zero or negative
+  // offsets refer to positions in the direct buffer.
   const std::vector<int64_t> underlying_offsets_;
   const std::string direct_buf_;
   // Number of mapped regions
@@ -76,7 +76,7 @@ class FileMap {
 
 class MapBuilder {
  public:
-  MapBuilder(bool pending_base64_decoding, uint64_t vtk_start);
+  MapBuilder(bool pending_base64_decoding, uint64_t data_start);
   void AddDirect(void* buf, uint64_t size);
   void AddMappedRegion(uint64_t offset, uint64_t size);
   FileMap* Finish();
@@ -84,13 +84,13 @@ class MapBuilder {
 
  private:
   const bool pending_base64_decoding_;
-  const uint64_t vtk_start_;
+  const uint64_t data_start_;
   uint64_t bytes_written_;
   std::vector<uint64_t> offsets_;
-  // Offsets may be positive, zero, or negative. Positive offsets refer to
-  // positions in the underlying VTK file relative to `vtk_start_ - 1`, before
-  // base64 encoding. Zero or negative offsets refer to positions in the direct
-  // buffer.
+  // Offsets may be positive, zero, or negative. Positive offsets are
+  // post-decoding locations in the underlying VTK file, stored as their
+  // distance from `data_start_` plus 1 to ensure positivity. Zero or negative
+  // offsets refer to positions in the direct buffer.
   std::vector<int64_t> underlying_offsets_;
   std::string direct_buf_;
 };
