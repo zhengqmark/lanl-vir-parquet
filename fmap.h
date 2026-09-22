@@ -62,6 +62,10 @@ class FileMap {
                uint64_t region_offset, uint64_t size) const;
   const uint64_t vtk_start_;
   const std::vector<uint64_t> offsets_;
+  // Offsets may be positive, zero, or negative. Positive offsets refer to
+  // positions in the underlying VTK file relative to `vtk_start_ - 1`, after
+  // Base64 decoding. Zero or negative offsets refer to positions in the direct
+  // buffer.
   const std::vector<int64_t> underlying_offsets_;
   const std::string direct_buf_;
   // Number of mapped regions
@@ -80,9 +84,10 @@ class MapBuilder {
   const uint64_t vtk_start_;
   uint64_t bytes_written_;
   std::vector<uint64_t> offsets_;
-  // Positive offsets are offsets to the underlying vtk file, relative to
-  // `vtk_start_` - 1 before base64 encoding and after base64 decoding. Zero or
-  // negative offsets are offsets to the direct buffer.
+  // Offsets may be positive, zero, or negative. Positive offsets refer to
+  // positions in the underlying VTK file relative to `vtk_start_ - 1`, after
+  // Base64 decoding. Zero or negative offsets refer to positions in the direct
+  // buffer.
   std::vector<int64_t> underlying_offsets_;
   std::string direct_buf_;
 };
