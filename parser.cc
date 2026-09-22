@@ -34,6 +34,8 @@
 
 #include "parser.h"
 
+#include "base64.h"
+
 #include <vtkDataCompressor.h>
 #include <vtkSmartPointer.h>
 #include <vtkXMLDataElement.h>
@@ -54,24 +56,73 @@ void CopyAttrs(std::unordered_map<std::string, std::string>* des,
   }
 }
 
+class OffsettedRandomAccessFile : public RandomAccessFile {
+ public:
+  OffsettedRandomAccessFile(RandomAccessFile* base, uint64_t offset);
+  virtual int64_t Pread(void* buf, uint64_t size, uint64_t offset);
+  virtual ~OffsettedRandomAccessFile();
+
+ private:
+  RandomAccessFile* const base_;
+  uint64_t const base_offset_;
+};
+
+OffsettedRandomAccessFile::OffsettedRandomAccessFile(RandomAccessFile* base,
+                                                     uint64_t offset)
+    : base_(base), base_offset_(offset) {}
+
+int64_t OffsettedRandomAccessFile::Pread(void* buf, uint64_t size,
+                                         uint64_t offset) {
+  return base_->Pread(buf, size, base_offset_ + offset);
+}
+
+OffsettedRandomAccessFile::~OffsettedRandomAccessFile() {}
+
+RandomAccessFile* NewArrayHeaderReader(RandomAccessFile* base, uint64_t offset,
+                                       bool is_base64_encoded) {
+  if (is_base64_encoded) {
+    return new Base64Reader(base, offset);
+  } else {
+    return new OffsettedRandomAccessFile(base, offset);
+  }
+}
+
 FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
                             DataType type, CompressionType codec,
-                            DataType header_type, uint64_t offset) {
+                            EncodingType enc, DataType header_type,
+                            uint64_t offset) {
+  const bool is_base64_encoded = enc == EncodingType::BASE64;
+  std::unique_ptr<RandomAccessFile> view(
+      NewArrayHeaderReader(file, offset, is_base64_encoded));
   if (codec == CompressionType::NONE) {
     UncompressedArray arr;
     if (header_type == DataType::UINT32)
-      ParseUncompressed32(file, offset, &arr);
+      ParseUncompressed32(view.get(), 0, &arr);
     else
-      ParseUncompressed64(file, offset, &arr);
-    FileMap* map = BuildMap(name, type, arr);
+      ParseUncompressed64(view.get(), 0, &arr);
+    // Adjust the start of the array data based on whether it has been
+    // base64-encoded.
+    if (is_base64_encoded) {
+      arr.data_start = offset + 4 * ((arr.data_start + 2) / 3);
+    } else {
+      arr.data_start = offset + arr.data_start;
+    }
+    FileMap* map = BuildMap(name, type, is_base64_encoded, arr);
     return map;
   } else {
     CompressedArray arr;
     if (header_type == DataType::UINT32)
-      ParseCompressed32(file, offset, &arr);
+      ParseCompressed32(view.get(), 0, &arr);
     else
-      ParseCompressed64(file, offset, &arr);
-    FileMap* map = BuildMap(name, type, codec, arr);
+      ParseCompressed64(view.get(), 0, &arr);
+    // Adjust the start of the array data based on whether it has been
+    // base64-encoded.
+    if (is_base64_encoded) {
+      arr.data_start = offset + 4 * ((arr.data_start + 2) / 3);
+    } else {
+      arr.data_start = offset + arr.data_start;
+    }
+    FileMap* map = BuildMap(name, type, codec, is_base64_encoded, arr);
     delete[] arr.compressed_blk_sz;
     return map;
   }
@@ -79,7 +130,7 @@ FileMap* ParseAppendedArray(RandomAccessFile* file, const std::string& name,
 
 FileMap* ParseVtkDataArray(
     RandomAccessFile* file, const std::string& name, CompressionType codec,
-    DataType header_type,
+    EncodingType enc, DataType header_type,
     const std::unordered_map<std::string, std::string>& map,
     uint64_t appended_data_pos) {
   DataType type = DataType::UNKNOWN;
@@ -106,7 +157,7 @@ FileMap* ParseVtkDataArray(
   const std::string& format = map.at("format");
   if (format == "appended") {
     return ParseAppendedArray(
-        file, name, type, codec, header_type,
+        file, name, type, codec, enc, header_type,
         atoll(map.at("offset").c_str()) + appended_data_pos);
   } else {
     throw std::runtime_error("Unsupported data array format");
@@ -114,7 +165,8 @@ FileMap* ParseVtkDataArray(
 }
 
 Dir* ParseArrayGroup(
-    RandomAccessFile* file, CompressionType codec, DataType header_type,
+    RandomAccessFile* file, CompressionType codec, EncodingType enc,
+    DataType header_type,
     const std::unordered_map<
         std::string, std::unordered_map<std::string, std::string>>& arr_info,
     uint64_t appended_data_pos) {
@@ -125,8 +177,8 @@ Dir* ParseArrayGroup(
     if (name == "vtkGhostType") continue;
 #endif
     std::string fname = name + ".parquet";
-    maps.emplace(fname, ParseVtkDataArray(file, name, codec, header_type, info,
-                                          appended_data_pos));
+    maps.emplace(fname, ParseVtkDataArray(file, name, codec, enc, header_type,
+                                          info, appended_data_pos));
   }
   return new ArrayDir(std::move(maps), file, false);
 }
@@ -140,6 +192,14 @@ CompressionType IdentifyCompressionType(vtkDataCompressor* compr) {
     return CompressionType::LZ4;
   } else {
     throw std::runtime_error("Unsupported data compression type");
+  }
+}
+
+EncodingType ParseEncodingType(vtkXMLDataElement* app) {
+  if (app && strcmp(app->GetAttribute("encoding"), "base64") == 0) {
+    return EncodingType::BASE64;
+  } else {
+    return EncodingType::RAW;
   }
 }
 
@@ -236,12 +296,8 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   const uint64_t appended_data_pos = parser->GetAppendedDataPosition();
 
   vtkXMLDataElement* root = parser->GetRootElement();
-  vtkXMLDataElement* app = root->FindNestedElementWithName("AppendedData");
-  if (!app) {
-    // OK!
-  } else if (strcmp(app->GetAttribute("encoding"), "raw") != 0) {
-    throw std::runtime_error("Unsupported appended data encoding type");
-  }
+  const EncodingType enc =
+      ParseEncodingType(root->FindNestedElementWithName("AppendedData"));
   CopyAttrs(&root_attrs, root);
   const DataType header_type = ParseHeaderType(root_attrs);
   CopyAttrs(&root_attrs, root->FindNestedElementWithName(mesh_type));
@@ -256,17 +312,19 @@ VtkTree* ParseVtkFileInternal(const char* fname, const char* mesh_type,
   std::unordered_map<std::string, std::unique_ptr<Dir>> subdirs;
   subdirs.emplace("METADATA", new MetadataDir(std::move(root_attrs)));
   subdirs.emplace("pointdata",
-                  ParseArrayGroup(file.get(), codec, header_type,
+                  ParseArrayGroup(file.get(), codec, enc, header_type,
                                   point_arr_info, appended_data_pos));
   if (load_points)
-    subdirs.emplace("points", ParseArrayGroup(file.get(), codec, header_type,
-                                              points_info, appended_data_pos));
+    subdirs.emplace("points",
+                    ParseArrayGroup(file.get(), codec, enc, header_type,
+                                    points_info, appended_data_pos));
   subdirs.emplace("celldata",
-                  ParseArrayGroup(file.get(), codec, header_type, cell_arr_info,
-                                  appended_data_pos));
+                  ParseArrayGroup(file.get(), codec, enc, header_type,
+                                  cell_arr_info, appended_data_pos));
   if (load_cells)
-    subdirs.emplace("cells", ParseArrayGroup(file.get(), codec, header_type,
-                                             cells_info, appended_data_pos));
+    subdirs.emplace("cells",
+                    ParseArrayGroup(file.get(), codec, enc, header_type,
+                                    cells_info, appended_data_pos));
   return new VtkTree(std::move(subdirs), &statbuf, file.release(), true);
 }
 

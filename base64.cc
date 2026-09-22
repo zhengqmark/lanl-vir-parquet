@@ -71,7 +71,9 @@ int64_t Base64Reader::PreadTyped(unsigned char* buf, uint64_t size,
     if (r == -1) {
       return -1;
     } else if (r <= skip) {
-      break;
+      // Fewer bytes are available than requested. Report this as an error to
+      // prevent potential application-level retries.
+      return -1;
     }
 
     uint64_t available = r - skip;

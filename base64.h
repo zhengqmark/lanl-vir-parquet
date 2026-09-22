@@ -38,11 +38,11 @@
 
 #include <stdint.h>
 
-class Base64Reader {
+class Base64Reader : public RandomAccessFile {
  public:
   Base64Reader(RandomAccessFile* base, uint64_t start);
-  int64_t Pread(void* buf, uint64_t size, uint64_t offset);
-  ~Base64Reader();
+  virtual int64_t Pread(void* buf, uint64_t size, uint64_t offset);
+  virtual ~Base64Reader();
 
  private:
   int64_t PreadTyped(unsigned char* buf, uint64_t size, uint64_t offset);

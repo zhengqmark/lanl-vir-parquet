@@ -34,6 +34,7 @@
 
 #include "fmap.h"
 
+#include "base64.h"
 #include "gen-cpp/parquet_types.h"
 #include "thrift_serializer.h"
 
@@ -71,10 +72,12 @@ RandomAccessFile* NewOSFile(const char* fname, struct stat* statbuf) {
 
 RandomAccessFile::~RandomAccessFile() {}
 
-FileMap::FileMap(uint64_t vtk_start, std::vector<uint64_t>&& offsets,
+FileMap::FileMap(bool pending_base64_decoding, uint64_t vtk_start,
+                 std::vector<uint64_t>&& offsets,
                  std::vector<int64_t>&& underlying_offsets,
                  std::string&& direct_buf)
-    : vtk_start_(vtk_start),
+    : pending_base64_decoding_(pending_base64_decoding),
+      vtk_start_(vtk_start),
       offsets_(std::move(offsets)),
       underlying_offsets_(std::move(underlying_offsets)),
       direct_buf_(std::move(direct_buf)),
@@ -107,11 +110,18 @@ int64_t FileMap::Pread(RandomAccessFile* base, char* buf, uint64_t size,
 
 int64_t FileMap::Read(RandomAccessFile* base, char* buf, uint64_t region_id,
                       uint64_t region_offset, uint64_t size) const {
+  // Positive offsets refer to positions in the underlying vtk file before
+  // base64 encoding and are relative to `vtk_start_ - 1`
   if (underlying_offsets_[region_id] > 0) {
-    // underlying_offsets are relative to `vtk_start` - 1
-    return base->Pread(
-        buf, size,
-        vtk_start_ + underlying_offsets_[region_id] - 1 + region_offset);
+    if (pending_base64_decoding_) {
+      Base64Reader reader(base, vtk_start_);
+      return reader.Pread(buf, size,
+                          underlying_offsets_[region_id] - 1 + region_offset);
+    } else {
+      return base->Pread(
+          buf, size,
+          vtk_start_ + underlying_offsets_[region_id] - 1 + region_offset);
+    }
   } else {
     memcpy(buf, &direct_buf_[-underlying_offsets_[region_id] + region_offset],
            size);
@@ -123,8 +133,10 @@ uint64_t FileMap::file_size() const { return offsets_[n_]; }
 
 FileMap::~FileMap() {}
 
-MapBuilder::MapBuilder(uint64_t vtk_start)
-    : vtk_start_(vtk_start), bytes_written_(0) {}
+MapBuilder::MapBuilder(bool pending_base64_decoding, uint64_t vtk_start)
+    : pending_base64_decoding_(pending_base64_decoding),
+      vtk_start_(vtk_start),
+      bytes_written_(0) {}
 
 MapBuilder::~MapBuilder() {}
 
@@ -144,7 +156,7 @@ void MapBuilder::AddMappedRegion(uint64_t offset, uint64_t size) {
 
 FileMap* MapBuilder::Finish() {
   offsets_.push_back(bytes_written_);  // EOF marking
-  return new FileMap(vtk_start_, std::move(offsets_),
+  return new FileMap(pending_base64_decoding_, vtk_start_, std::move(offsets_),
                      std::move(underlying_offsets_), std::move(direct_buf_));
 }
 
@@ -326,14 +338,14 @@ uint32_t AppendFooter(ThriftSerializer* serializer, MapBuilder* builder,
 }  // namespace
 
 FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
-                  const CompressedArray& arr) {
+                  bool pending_base64_decoding, const CompressedArray& arr) {
   char par1[] = "PAR1";
   int64_t total_compressed_size = 0;
   int64_t total_uncompressed_size = 0;
   int64_t total_count = 0;
   const int value_size = GetValueSize(type);
   ThriftSerializer serializer;
-  MapBuilder builder(arr.data_start);
+  MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
   uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
   for (int i = 0; i < arr.num_blks - 1; i++) {
@@ -367,14 +379,14 @@ FileMap* BuildMap(const std::string& name, DataType type, CompressionType codec,
 }
 
 FileMap* BuildMap(const std::string& name, DataType type,
-                  const UncompressedArray& arr) {
+                  bool pending_base64_decoding, const UncompressedArray& arr) {
   char par1[] = "PAR1";
   int64_t total_compressed_size = 0;
   int64_t total_uncompressed_size = 0;
   int64_t total_count = 0;
   const int value_size = GetValueSize(type);
   ThriftSerializer serializer;
-  MapBuilder builder(arr.data_start);
+  MapBuilder builder(pending_base64_decoding, arr.data_start);
   builder.AddDirect(par1, 4);
   uint64_t page_offset = 1;  // Offsets are relative to `data_start` - 1
   uint64_t blk_sz = 32768;

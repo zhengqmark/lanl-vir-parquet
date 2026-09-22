@@ -38,6 +38,8 @@
 
 class RandomAccessFile;
 
+enum EncodingType { RAW, BASE64 };
+
 enum DataType {
   INT8,
   UINT8,
