@@ -50,7 +50,7 @@ if (NOT VTK_FOUND)
 endif ()
 
 add_executable(fuse_main fuse_main.c c.cc parser.cc
-        vfs.cc fmap.cc arr.cc gen-cpp/parquet_types.cpp)
+        vfs.cc fmap.cc arr.cc base64.cc gen-cpp/parquet_types.cpp)
 target_link_libraries(fuse_main PRIVATE ${VTK_LIBRARIES} thrift::thrift
         PkgConfig::fuse3)
 vtk_module_autoinit(TARGETS fuse_main
