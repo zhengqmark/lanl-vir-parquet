@@ -34,6 +34,7 @@
 
 #include "c.h"
 
+#include "io.h"
 #include "parser.h"
 #include "vfs.h"
 
@@ -248,6 +249,15 @@ void* vtk_init_tree_int(const char* fname) {
   }
 }
 
+void* TEST_init_tree(const char* fname) {
+  try {
+    return ParseVtkFile(fname);
+  } catch (const std::exception& e) {
+    fprintf(stderr, "Unable to init vtk tree. %s\n", e.what());
+    exit(EXIT_FAILURE);
+  }
+}
+
 int vtk_getattr(const char* path, struct stat* statbuf,
                 struct fuse_file_info* fi) {
   VtkTree* const tree =
@@ -275,9 +285,25 @@ int vtk_open(const char* path, struct fuse_file_info* fi) {
   return Open(tree, path, fi);
 }
 
+void* TEST_open(void* tree, const char* path) {
+  struct fuse_file_info fi;
+  int r = Open(reinterpret_cast<VtkTree*>(tree), path, &fi);
+  if (r == 0) {
+    return reinterpret_cast<void*>(fi.fh);
+  } else {
+    return nullptr;
+  }
+}
+
 int vtk_read(const char* path, char* buf, size_t size, off_t off,
              struct fuse_file_info* fi) {
   return Read(buf, size, off, fi);
+}
+
+int TEST_read(void* fh, char* buf, size_t size, off_t off) {
+  struct fuse_file_info fi;
+  fi.fh = reinterpret_cast<uintptr_t>(fh);
+  return Read(buf, size, off, &fi);
 }
 
 int vtk_flush(const char* path, struct fuse_file_info* fi) { return 0; }
@@ -286,7 +312,15 @@ int vtk_release(const char* path, struct fuse_file_info* fi) {
   return Release(fi);
 }
 
+void TEST_close(void* fh) {
+  struct fuse_file_info fi;
+  fi.fh = reinterpret_cast<uintptr_t>(fh);
+  Release(&fi);
+}
+
 void vtk_destroy_tree(void* private_data) {
   delete reinterpret_cast<VtkTree*>(private_data);
 }
+
+void TEST_destroy_tree(void* tree) { delete reinterpret_cast<VtkTree*>(tree); }
 }
