@@ -34,7 +34,7 @@
 
 #include "c.h"
 
-#include "io.h"
+#include "fuse_bypass.h"
 #include "parser.h"
 #include "vfs.h"
 
