@@ -85,18 +85,48 @@ void run(void* vtk_tree, const char* fname, char* buf, size_t bufsz) {
   }
   uint64_t dura = current_micros() - start;
   fprintf(stdout, "f=%s (%ld bytes)\n", fname, off);
+  fprintf(stdout, "bufsz=%lu bytes\n", bufsz);
   fprintf(stdout, "Read speed=%.3f MiB/s\n",
           1000.0 * 1000.0 * (double)off / (double)dura / 1024.0 / 1024.0);
   TEST_close(file);
 }
 
+void run_baseline(const char* fname, char* buf, size_t bufsz) {
+  uint64_t start = current_micros();
+  int fd = open(fname, O_RDONLY);
+  if (fd == -1) {
+    return;
+  }
+  off_t off = 0;
+  for (;;) {
+    int nr = pread(fd, buf, bufsz, off);
+    if (nr < 0) {
+      return;  // Error
+    }
+    off += nr;
+    if (nr < bufsz) {
+      break;  // End-of-file
+    }
+  }
+  uint64_t dura = current_micros() - start;
+  fprintf(stdout, "f=%s (%ld bytes)\n", fname, off);
+  fprintf(stdout, "bufsz=%lu bytes\n", bufsz);
+  fprintf(stdout, "Read speed=%.3f MiB/s\n",
+          1000.0 * 1000.0 * (double)off / (double)dura / 1024.0 / 1024.0);
+  close(fd);
+}
+
 int main(int argc, char* argv[]) {
+  int mode = 1; /* 0=baseline, 1=fuse */
   size_t bufsz = 131072;
   int c;
-  while ((c = getopt(argc, argv, "b:")) != -1) {
+  while ((c = getopt(argc, argv, "b:m:")) != -1) {
     switch (c) {
       case 'b':
         bufsz = atoi(optarg);
+        break;
+      case 'm':
+        mode = atoi(optarg);
         break;
       default:
         break;
@@ -106,18 +136,31 @@ int main(int argc, char* argv[]) {
   argc -= optind;
   argv += optind;
 
-  if (argc < 2) {
-    exit(1);
+  if (mode == 0) {
+    if (argc < 1) {
+      exit(1);
+    }
+
+    os_drop_caches();
+    char* const buf = malloc(bufsz);
+    run_baseline(argv[0], buf, bufsz);
+    free(buf);
+
+  } else {
+    if (argc < 2) {
+      exit(1);
+    }
+
+    const char* vtk_fname = argv[0];
+    const char* vir_fname = argv[1];
+
+    void* const vtk_tree = TEST_init_tree(vtk_fname);
+    os_drop_caches();
+    char* const buf = malloc(bufsz);
+    run(vtk_tree, vir_fname, buf, bufsz);
+    free(buf);
+    TEST_destroy_tree(vtk_tree);
   }
 
-  const char* vtk_fname = argv[0];
-  const char* vir_fname = argv[1];
-
-  void* const vtk_tree = TEST_init_tree(vtk_fname);
-  os_drop_caches();
-  char* const buf = malloc(bufsz);
-  run(vtk_tree, vir_fname, buf, bufsz);
-  free(buf);
-  TEST_destroy_tree(vtk_tree);
   return 0;
 }
