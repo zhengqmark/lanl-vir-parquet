@@ -69,6 +69,15 @@ The VTK file used in this example can be downloaded from [oceans11.lanl.gov](htt
 
 Once mounted, we can use strace to track reads to the underlying vtk file: `sudo strace -f -ttT -yy -e trace=pread64,preadv,preadv2 -o /tmp/fuse-read.trace -p "$(pgrep -n -f '/fuse_main')"`.
 
+# Performance Testing
+
+The `bench` program allows users to measure plain file read performance amd evaluate Virtual Parquet overhead. It supports two modes:
+
+- **Mode 0** - Uses standard POSIX I/O calls to read either a regular VTK file for baseline performance or a translated file through FUSE for end-to-end performance. The FUSE measurement includes both translation and FUSE overhead.
+- **Mode 1** - Reads translated data through Virtual Parquet’s internal API, bypassing FUSE. This measures translation overhead without FUSE overhead, complementing the end-to-end measurement in Mode 0.
+
+Specify the mode with `-m 0` for standard POSIX I/O or `-m 1` for Virtual Parquet’s internal API. By default, `bench` uses a 128 KiB read buffer. Use `-b <bufsz>` to change the buffer size.
+
 # Acknowledgement
 
 [![License](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
