@@ -117,7 +117,7 @@ void run_baseline(const char* fname, char* buf, size_t bufsz) {
 }
 
 int main(int argc, char* argv[]) {
-  int mode = 1; /* 0=baseline, 1=fuse */
+  int mode = 1; /* 0=posix/fuse path, 1=fuse-bypass */
   size_t bufsz = 131072;
   int c;
   while ((c = getopt(argc, argv, "b:m:")) != -1) {
