@@ -56,3 +56,11 @@ target_link_libraries(fuse_main PRIVATE ${VTK_LIBRARIES} thrift::thrift
 vtk_module_autoinit(TARGETS fuse_main
         MODULES ${VTK_LIBRARIES}
 )
+
+add_executable(bench bench.c c.cc parser.cc
+        vfs.cc fmap.cc arr.cc base64.cc gen-cpp/parquet_types.cpp)
+target_link_libraries(bench PRIVATE ${VTK_LIBRARIES} thrift::thrift
+        PkgConfig::fuse3)
+vtk_module_autoinit(TARGETS bench
+        MODULES ${VTK_LIBRARIES}
+)
