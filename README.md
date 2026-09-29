@@ -67,6 +67,8 @@ fusermount -u /tmp/pv_insitu_300x300x300_24095
 
 The VTK file used in this example can be downloaded from [oceans11.lanl.gov](https://oceans11.lanl.gov/deepwaterimpact/data/yA31/300x300x300-FourScalars_resolution/); any timestep will work. The files are part of LANL’s publicly available Deep Water Asteroid Impact dataset (LA-UR-17-21595). See this [video](https://www.youtube.com/watch?v=yeXcgnj8AG0) for more information about the dataset.
 
+Once mounted, we can use strace to track reads to the underlying vtk file: `sudo strace -f -ttT -yy -e trace=pread64,preadv,preadv2 -o /tmp/fuse-read.trace -p "$(pgrep -n -f '/fuse_main')"`.
+
 # Acknowledgement
 
 [![License](https://licensebuttons.net/l/by/4.0/88x31.png)](https://creativecommons.org/licenses/by/4.0/)
