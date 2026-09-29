@@ -66,7 +66,7 @@ uint64_t current_micros() {
   return result;
 }
 
-void run(void* vtk_tree, const char* fname, char* buf, size_t bufsz) {
+void run_bypass(void* vtk_tree, const char* fname, char* buf, size_t bufsz) {
   uint64_t start = current_micros();
   void* const file = TEST_open(vtk_tree, fname);
   if (!file) {
@@ -91,7 +91,7 @@ void run(void* vtk_tree, const char* fname, char* buf, size_t bufsz) {
   TEST_close(file);
 }
 
-void run_baseline(const char* fname, char* buf, size_t bufsz) {
+void run_posix(const char* fname, char* buf, size_t bufsz) {
   uint64_t start = current_micros();
   int fd = open(fname, O_RDONLY);
   if (fd == -1) {
@@ -143,7 +143,7 @@ int main(int argc, char* argv[]) {
 
     os_drop_caches();
     char* const buf = malloc(bufsz);
-    run_baseline(argv[0], buf, bufsz);
+    run_posix(argv[0], buf, bufsz);
     free(buf);
 
   } else {
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
     void* const vtk_tree = TEST_init_tree(vtk_fname);
     os_drop_caches();
     char* const buf = malloc(bufsz);
-    run(vtk_tree, vir_fname, buf, bufsz);
+    run_bypass(vtk_tree, vir_fname, buf, bufsz);
     free(buf);
     TEST_destroy_tree(vtk_tree);
   }
